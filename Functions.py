@@ -51,12 +51,13 @@ def ExtractImages(FullPath, PathOnly, FileOnly):
 	file = zip.ZipFile(FullPath)
 	makedirs(name=PathOnly + 'Temp',exist_ok=True)
 	for media in file.namelist():
-		if match(r'(ppt|word|xl)/media', media):
+		if match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
 			file.extract(media,PathOnly + 'Temp')
-	CleanTempDir(PathOnly + 'Temp')		
-	# for rel in file.namelist():
-	# 	if match(r'ppt/slides/_rels', rel):
-	# 		file.extract(rel,PathOnly + 'Temp')
+	CleanTempDir(PathOnly + 'Temp')
+	if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
+		for rel in file.namelist():
+			if match(r'(ppt|story)/slides/_rels', rel):
+				file.extract(rel,PathOnly + 'Temp')
 
 def CleanTempDir(Tempdir):
 	from os import walk, remove
@@ -64,36 +65,50 @@ def CleanTempDir(Tempdir):
 
 	for TempRoot, TempPath, TempFile in walk(Tempdir):
 		for file in TempFile:
-			if file[-4:] == 'jpeg':
+			if file.endswith('jpeg'):
 				with Image.open(TempRoot.replace('\\','/') + '/' + file) as im:
 					im.save(TempRoot.replace('\\','/') + '/' + file[:-4] + 'png')
 					remove(TempRoot.replace('\\','/') + '/' + file)
-			elif file[-3:] == 'jpg':
+			elif file.endswith('jpg'):
 				with Image.open(TempRoot.replace('\\','/') + '/' + file) as im:
 					im.save(TempRoot.replace('\\','/') + '/' + file[:-3] + 'png')
 					remove(TempRoot.replace('\\','/') + '/' + file)
-			elif file[-3:] == 'png':
-				continue
-			else:
-				remove(TempRoot.replace('\\','/') + '/' + file)
 
 def FillCS(Tempdir, PathOnly, FileOnly):
 	import docx
 	from os import walk, makedirs
 	from shutil import rmtree
-
+	from regex import match
 	makedirs(PathOnly + 'Contact Sheets', exist_ok=True)
 	CS = docx.Document()
 
 	for PicRoot, PicPath, PicFile in walk(Tempdir):
 		for pic in PicFile:
-			Table = CS.add_table(rows=5, cols=2, style='Table Grid')
-			Table.cell(0,0).merge(Table.cell(0,1)).text = pic
-			Table.cell(1,0).merge(Table.cell(1,1))
-			Table.cell(2,0).merge(Table.cell(2,1))
-			Table.cell(3,0).text = 'Source'
-			Table.cell(3,1).text = 'Target'
-			Table.cell(1,0).add_paragraph().add_run().add_picture(PicRoot.replace('\\', '/') + '/' + pic, width=(CS.sections[0].page_width - (CS.sections[0].right_margin + CS.sections[0].left_margin)))
-			CS.add_section()
+			if pic.endswith('png'):
+				Table = CS.add_table(rows=5, cols=2, style='Table Grid')
+				Table.cell(0,0).merge(Table.cell(0,1)).text = pic
+				Table.cell(1,0).merge(Table.cell(1,1))
+				Table.cell(2,0).merge(Table.cell(2,1))
+				Table.cell(3,0).text = 'Source'
+				Table.cell(3,1).text = 'Target'
+				Table.cell(1,0).add_paragraph().add_run().add_picture(PicRoot.replace('\\', '/') + '/' + pic, width=(CS.sections[0].page_width - (CS.sections[0].right_margin + CS.sections[0].left_margin)))
+				if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
+					Locations = LocateImage(Tempdir, pic)
+					for location in Locations:
+						Table.cell(2,0).add_paragraph().add_run().text = location
+				CS.add_section()
 	CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
 	rmtree(Tempdir)
+
+def LocateImage(TempDir, ImageName):
+	from os import walk
+	from regex import search
+
+	Locations = []
+	for Relroot, Relpaths, Relfiles in walk(TempDir):
+		for rel in Relfiles:
+			if rel.endswith('rels'):
+				relstr = str(open(Relroot + '\\' + rel).read())
+				if search(ImageName[:-4], relstr):
+					Locations.append(rel[:5] + ' ' + rel[5:rel.find('.')])
+	return(Locations)
