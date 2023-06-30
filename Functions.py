@@ -16,9 +16,9 @@ def Upsave(FullPath):
 	return(FullPath, PathOnly, FileOnly)
 
 def Doc2Docx(FullPath, PathOnly, FileOnly):
-	from win32com.client import Dispatch
+	from win32com.client import DispatchEx
 
-	WordApp = Dispatch('Word.Application')
+	WordApp = DispatchEx('Word.Application')
 	Doc = WordApp.Documents.Open(FullPath)
 	Doc.SaveAs(PathOnly + FileOnly[:-4], FileFormat=12)
 	WordApp.Quit()
@@ -26,18 +26,18 @@ def Doc2Docx(FullPath, PathOnly, FileOnly):
 	return(FullPath)
 
 def Xls2Xlsx(FullPath, PathOnly, FileOnly):
-	from win32com.client import Dispatch
+	from win32com.client import DispatchEx
 
-	XlApp = Dispatch('Excel.Application')
+	XlApp = DispatchEx('Excel.Application')
 	Xl = XlApp.Workbooks.Open(FullPath)
 	Xl.SaveAs(PathOnly + FileOnly[:-4], FileFormat=51)
 	XlApp.Quit()
 	return(PathOnly + FileOnly[:-3] + 'xlsx')
 
 def Ppt2Pptx(FullPath, PathOnly, FileOnly):
-	from win32com.client import Dispatch
+	from win32com.client import DispatchEx
 
-	PptApp = Dispatch('PowerPoint.Application')
+	PptApp = DispatchEx('PowerPoint.Application')
 	Ppt = PptApp.Presentations.Open(FullPath,0,0,0)
 	Ppt.SaveAs(PathOnly + FileOnly[:-4], FileFormat=24)
 	PptApp.Quit()
@@ -53,7 +53,6 @@ def ExtractImages(FullPath, PathOnly, FileOnly):
 	for media in file.namelist():
 		if match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
 			file.extract(media,PathOnly + 'Temp')
-	CleanTempDir(PathOnly + 'Temp')
 	if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
 		for rel in file.namelist():
 			if match(r'(ppt|story)/slides/_rels', rel):
@@ -91,11 +90,12 @@ def FillCS(Tempdir, PathOnly, FileOnly):
 				Table.cell(2,0).merge(Table.cell(2,1))
 				Table.cell(3,0).text = 'Source'
 				Table.cell(3,1).text = 'Target'
-				Table.cell(1,0).add_paragraph().add_run().add_picture(PicRoot.replace('\\', '/') + '/' + pic, width=(CS.sections[0].page_width - (CS.sections[0].right_margin + CS.sections[0].left_margin)))
+Table.cell(1,0).paragraphs[0].add_run().add_picture(PicRoot.replace('\\', '/') + '/' + pic, width=(CS.sections[0].page_width - (CS.sections[0].right_margin + CS.sections[0].left_margin)))
 				if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
 					Locations = LocateImage(Tempdir, pic)
 					for location in Locations:
-						Table.cell(2,0).add_paragraph().add_run().text = location
+						Table.cell(2,0).add_paragraph(location, style='List Bullet')
+				CS.add_section()
 				CS.add_section()
 	CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
 	rmtree(Tempdir)
@@ -111,4 +111,23 @@ def LocateImage(TempDir, ImageName):
 				relstr = str(open(Relroot + '\\' + rel).read())
 				if search(ImageName[:-4], relstr):
 					Locations.append(rel[:5] + ' ' + rel[5:rel.find('.')])
-	return(Locations)
+return(Locations)
+
+def BilTables(FullPath, PathOnly, FileOnly, BasPath):
+	from win32com.client import DispatchEx
+
+	WordApp = DispatchEx('Word.Application')
+	Doc = WordApp.Documents.Open(FullPath)
+	Doc.VBProject.VBComponents.Import(BasPath)
+	Doc.Application.Run('Bil_Tables')
+	WordApp.Quit()
+	return(PathOnly + '\\Temp_' + FileOnly)
+
+def BilText(FullPath, BasPath):
+	from win32com.client import DispatchEx
+
+	WordApp = DispatchEx('Word.Application')
+	Doc = WordApp.Documents.Open(FullPath)
+	Doc.VBProject.VBComponents.Import(BasPath)
+	Doc.Application.Run('Bil_Text')
+	WordApp.Quit()

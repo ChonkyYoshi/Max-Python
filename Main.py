@@ -1,7 +1,8 @@
 import PySimpleGUI as gui
 import Functions as fn
 from configparser import ConfigParser
-from os.path import isfile
+from os.path import isfile, abspath
+from os import remove
 
 config = ConfigParser()
 config.read('config.ini')
@@ -11,16 +12,34 @@ def Contact_Sheet(PathInput):
 	FullPath, PathOnly, FileOnly = fn.Upsave(PathInput)
 	MainWindow['---PBarFile---'].update(FileOnly)
 	MainWindow['---PBarFileStep---'].update('Extracting Images')
-	MainWindow['---PBar---'].update((index+1/3)/len(PathList)*100)
+	MainWindow['---PBar---'].update((index+1/4)/len(PathList)*100)
 	MainWindow.refresh()
 	fn.ExtractImages(FullPath, PathOnly, FileOnly)
+	MainWindow['---PBarFileStep---'].update('cleaning up jpeg and jpg')
+	MainWindow['---PBar---'].update((index+2/4)/len(PathList)*100)
+	MainWindow.refresh()
+	fn.CleanTempDir(PathOnly + 'Temp')
 	MainWindow['---PBarFileStep---'].update('Filling in Contact Sheet')
-	MainWindow['---PBar---'].update((index+2/3)/len(PathList)*100)
+	MainWindow['---PBar---'].update((index+3/4)/len(PathList)*100)
 	MainWindow.refresh()
 	fn.FillCS(PathOnly + 'Temp', PathOnly, FileOnly)
-	MainWindow['---PBar---'].update((index+3/3)/len(PathList)*100)
-	MainWindow.refresh()
 
+def Bilingual(PathInput):
+	FullPath, PathOnly, FileOnly = fn.Upsave(PathInput)
+	MainWindow['---PBarFile---'].update(FileOnly)
+	MainWindow['---PBarFileStep---'].update('Processing tables')
+	MainWindow['---PBar---'].update((index + 1/4)/len(PathList)*100)
+	FullPath = fn.BilTables(FullPath.replace('/','\\\\'), PathOnly, FileOnly, abspath('Bas Files\Bil.bas').replace('\\', '\\\\'))
+	MainWindow.refresh()
+	MainWindow['---PBarFile---'].update(FileOnly)
+	MainWindow['---PBarFileStep---'].update('Processing regular text')
+	MainWindow['---PBar---'].update((index + 2/4)/len(PathList)*100)
+	fn.BilText(FullPath.replace('/','\\\\'), abspath('Bas Files\Bil.bas').replace('\\', '\\\\'))
+	MainWindow['---PBarFile---'].update(FileOnly)
+	MainWindow['---PBarFileStep---'].update('Removing Temp file')
+	MainWindow['---PBar---'].update((index + 3/4)/len(PathList)*100)
+	MainWindow.refresh()
+	remove(FullPath)
 #GUI layout and creation
 TopText = [
 	[gui.Text(text='Welcome to Max GUI!\nThis utility lets you run the different functions of Max (also knows as the Watched Folders) anywhere you want.\nSimply choose a function from the sidebar on the left, click on Browse, select all the files you want to process and click on run.',justification='center')],
@@ -36,7 +55,7 @@ Sidebar = [
 
 MainCanvas = [
 	[gui.InputText(default_text='',size=75,key='---PathInput---'),gui.FilesBrowse(target='---PathInput---')],
-	[gui.Text(text='',key='---Description---',size=(48,5))],
+	[gui.Text(text='',key='---Description---',size=(50,10))],
 	[gui.Submit(button_text='Run',size=15,visible=False,key='---Run---')],
 	[gui.ProgressBar(max_value=100,orientation='horizontal',size=(48,20),bar_color=('green','white'),key='---PBar---',visible=False)],
 	[gui.Text(text='',key='---PBarFile---')],
@@ -73,6 +92,8 @@ while True:
 				match FunctionName:
 					case 'Contact_Sheet':
 						Contact_Sheet(PathInput)
+					case 'Bilingual_Table':
+						Bilingual(PathInput)
 			MainWindow['---PBar---'].update(100)
 			MainWindow['---PBarFile---'].update('')
 			MainWindow['---PBarFileStep---'].update('Done!')
