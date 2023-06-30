@@ -53,7 +53,6 @@ def ExtractImages(FullPath, PathOnly, FileOnly):
 	for media in file.namelist():
 		if match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
 			file.extract(media,PathOnly + 'Temp')
-	CleanTempDir(PathOnly + 'Temp')
 	if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
 		for rel in file.namelist():
 			if match(r'(ppt|story)/slides/_rels', rel):
@@ -112,3 +111,22 @@ def LocateImage(TempDir, ImageName):
 				if search(ImageName[:-4], relstr):
 					Locations.append(rel[:5] + ' ' + rel[5:rel.find('.')])
 	return(Locations)
+
+def BilTables(FullPath, PathOnly, FileOnly, BasPath):
+	from win32com.client import DispatchEx
+
+	WordApp = DispatchEx('Word.Application')
+	Doc = WordApp.Documents.Open(FullPath)
+	Doc.VBProject.VBComponents.Import(BasPath)
+	Doc.Application.Run('Bil_Tables')
+	WordApp.Quit()
+	return(PathOnly + '\\Temp_' + FileOnly)
+
+def BilText(FullPath, BasPath):
+	from win32com.client import DispatchEx
+
+	WordApp = DispatchEx('Word.Application')
+	Doc = WordApp.Documents.Open(FullPath)
+	Doc.VBProject.VBComponents.Import(BasPath)
+	Doc.Application.Run('Bil_Text')
+	WordApp.Quit()
