@@ -51,12 +51,12 @@ def ExtractImages(FullPath, PathOnly, FileOnly):
 	file = zip.ZipFile(FullPath)
 	makedirs(name=PathOnly + 'Temp',exist_ok=True)
 	for media in file.namelist():
-		if match(r'(ppt|word|xl)/media/.*?\.(jpeg|jpg|png)', media):
+		if match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
 			file.extract(media,PathOnly + 'Temp')
 	CleanTempDir(PathOnly + 'Temp')
-	if FileOnly.endswith('pptx'):
+	if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
 		for rel in file.namelist():
-			if match(r'ppt/slides/_rels', rel):
+			if match(r'(ppt|story)/slides/_rels', rel):
 				file.extract(rel,PathOnly + 'Temp')
 
 def CleanTempDir(Tempdir):
@@ -92,7 +92,7 @@ def FillCS(Tempdir, PathOnly, FileOnly):
 				Table.cell(3,0).text = 'Source'
 				Table.cell(3,1).text = 'Target'
 				Table.cell(1,0).add_paragraph().add_run().add_picture(PicRoot.replace('\\', '/') + '/' + pic, width=(CS.sections[0].page_width - (CS.sections[0].right_margin + CS.sections[0].left_margin)))
-				if FileOnly.endswith('pptx'):
+				if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
 					Locations = LocateImage(Tempdir, pic)
 					for location in Locations:
 						Table.cell(2,0).add_paragraph().add_run().text = location
