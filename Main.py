@@ -40,8 +40,6 @@ def Bilingual(PathInput):
 	MainWindow['---PBar---'].update((index + 3/4)/len(PathList)*100)
 	MainWindow.refresh()
 	remove(FullPath)
-	
-
 #GUI layout and creation
 TopText = [
 	[gui.Text(text='Welcome to Max GUI!\nThis utility lets you run the different functions of Max (also knows as the Watched Folders) anywhere you want.\nSimply choose a function from the sidebar on the left, click on Browse, select all the files you want to process and click on run.',justification='center')],
