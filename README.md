@@ -1,2 +1,2 @@
-# Max-Python
-GUI version of Max written fully in Python for personal training
+# Prep ToolKit
+Simple Python Utility to Automate prepping files for translation
