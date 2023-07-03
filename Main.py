@@ -7,9 +7,11 @@ from os import remove
 # Get description from config
 config = ConfigParser()
 config.read('config.ini')
+filestypes = dict(config['file_types'])
+for key in filestypes:
+    filestypes[key] = tuple(str(filestypes[key]).split(','))
 
 
-# Functions started when clicking on "Run"
 def Contact_Sheet(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
@@ -82,7 +84,6 @@ def AcceptRevisions(PathInput, AccTC, RejTC, DelCom, Overwrite):
                                   DelCom, Overwrite)
 
 
-# GUI layout and creation
 TopText = [
     [gui.Text(text=str(config['Descriptions']['TopText']),
               justification='center')],
@@ -97,8 +98,10 @@ Sidebar = [
 ]
 
 Rightlayout = [
-    [gui.InputText(default_text='', key='---PathInput---', ),
-     gui.FilesBrowse(target='---PathInput---')],
+    [gui.InputText(default_text='', key='---PathInput---',
+                   visible=False),
+     gui.FilesBrowse(target='---PathInput---',
+                     visible=False, key='---Browse---')],
     [gui.Text(text='', key='---Description---')],
     [gui.Submit(button_text='Run', size=15, visible=False, key='---Run---')],
     [gui.Checkbox(text='Accept Revisions', auto_size_text=True,
@@ -123,7 +126,6 @@ layout = [[TopText, gui.Column(Sidebar, vertical_scroll_only=True,
 MainWindow = gui.Window('Prep ToolKit', layout, size=(780, 400))
 FunctionName = ''
 
-# read events from GUI and start main loop
 while True:
     event, values = MainWindow.read()
     match event:
@@ -167,6 +169,9 @@ while True:
             MainWindow['---PBarFile---'].update('')
             MainWindow['---PBarFileStep---'].update('Done!')
         case 'Contact Sheet':
+            MainWindow['---PathInput---'].update(visible=True)
+            MainWindow['---Browse---'].update(visible=True)
+            MainWindow['---Browse---'].FileTypes = filestypes['cs'],
             MainWindow['---Description---'].update(config['Descriptions']
                                                    ['Contact_Sheet'])
             MainWindow['---Run---'].update(visible=True)
@@ -176,6 +181,9 @@ while True:
             MainWindow['---Overwrite---'].update(visible=False)
             FunctionName = 'Contact_Sheet'
         case 'Bilingual Table':
+            MainWindow['---PathInput---'].update(visible=True)
+            MainWindow['---Browse---'].update(visible=True)
+            MainWindow['---Browse---'].FileTypes = filestypes['bil'],
             MainWindow['---Description---'].update(config['Descriptions']
                                                    ['Bilingual_Table'])
             MainWindow['---Run---'].update(visible=True)
@@ -185,6 +193,9 @@ while True:
             MainWindow['---Overwrite---'].update(visible=False)
             FunctionName = 'Bilingual_Table'
         case 'Word to PDF':
+            MainWindow['---PathInput---'].update(visible=True)
+            MainWindow['---Browse---'].update(visible=True)
+            MainWindow['---Browse---'].FileTypes = filestypes['pdf'],
             MainWindow['---Description---'].update(config['Descriptions']
                                                    ['Doc2PDF'])
             MainWindow['---Run---'].update(visible=True)
@@ -194,6 +205,9 @@ while True:
             MainWindow['---Overwrite---'].update(visible=True)
             FunctionName = 'Doc2PDF'
         case 'Accept Revisions':
+            MainWindow['---PathInput---'].update(visible=True)
+            MainWindow['---Browse---'].update(visible=True)
+            MainWindow['---Browse---'].FileTypes = filestypes['rev'],
             MainWindow['---Description---'].update(config['Descriptions']
                                                    ['Accept_Revisions'])
             MainWindow['---Run---'].update(visible=True)
