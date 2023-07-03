@@ -197,3 +197,16 @@ def AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom,
             case 'c':
                 Doc.SaveAs(PathOnly + 'NoRev_' + FileOnly[:-4], FileFormat=0)
     WordApp.Quit()
+
+
+def PrepStoryExport(FullPath, PathOnly, FileOnly, BasPath):
+    import docx
+
+    doc = docx.Document(FullPath)
+    for par in doc.paragraphs:
+        for run in par.runs:
+            run.font.hidden = True
+
+    for table in doc.tables:
+        for cell in table.cells:
+    doc.save(PathOnly + 'Prep_' + FileOnly)

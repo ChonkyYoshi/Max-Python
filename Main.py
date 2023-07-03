@@ -4,7 +4,6 @@ from configparser import ConfigParser
 from os.path import isfile, abspath
 from os import remove
 
-# Get description from config
 config = ConfigParser()
 config.read('config.ini')
 filestypes = dict(config['file_types'])
@@ -51,14 +50,14 @@ def Bilingual(PathInput):
     MainWindow['---PBarFileStep---'].update('Processing tables')
     MainWindow['---PBar---'].update((index + 2/5)/len(PathList)*100)
     FullPath = fn.BilTables(FullPath.replace('/', '\\\\'), PathOnly, FileOnly,
-                            abspath(r'Bas Files\Bil.bas').
+                            abspath(r'Bas Files\\Bil.bas').
                             replace('\\', '\\\\'))
     MainWindow.refresh()
     MainWindow['---PBarFile---'].update(FileOnly)
     MainWindow['---PBarFileStep---'].update('Processing regular text')
     MainWindow['---PBar---'].update((index + 3/5)/len(PathList)*100)
     fn.BilText(FullPath.replace('/', '\\\\'),
-               abspath(r'Bas Files\Bil.bas').replace('\\', '\\\\'))
+               abspath(r'Bas Files\\Bil.bas').replace('\\', '\\\\'))
     MainWindow['---PBarFile---'].update(FileOnly)
     MainWindow['---PBarFileStep---'].update('Removing Temp file')
     MainWindow['---PBar---'].update((index + 4/5)/len(PathList)*100)
@@ -80,8 +79,19 @@ def AcceptRevisions(PathInput, AccTC, RejTC, DelCom, Overwrite):
     MainWindow['---PBarFile---'].update(FileOnly)
     MainWindow['---PBarFileStep---'].update('Accepting Revisions')
     MainWindow['---PBar---'].update(index/len(PathList)*100)
-    FullPath = fn.AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC,
-                                  DelCom, Overwrite)
+    fn.AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC,
+                       DelCom, Overwrite)
+
+
+def PrepStoryExport(PathInput):
+    FullPath, PathOnly, FileOnly = fn.split(PathInput)
+    print(FullPath)
+    MainWindow['---PBarFile---'].update(FileOnly)
+    MainWindow['---PBarFileStep---'].update('Running VBA Macro')
+    MainWindow['---PBar---'].update(index/len(PathList)*100)
+    fn.PrepStoryExport(FullPath, PathOnly, FileOnly,
+                       abspath(r'Bas Files\\Prep_Story.bas').
+                       replace('\\', '\\\\'))
 
 
 TopText = [
@@ -94,7 +104,8 @@ Sidebar = [
     [gui.Button(button_text='Contact Sheet', size=15)],
     [gui.Button(button_text='Bilingual Table', size=15)],
     [gui.Button(button_text='Word to PDF', size=15)],
-    [gui.Button(button_text='Accept Revisions', size=15)]
+    [gui.Button(button_text='Accept Revisions', size=15)],
+    [gui.Button(button_text='Prep Story Export', size=15)]
 ]
 
 Rightlayout = [
@@ -108,7 +119,7 @@ Rightlayout = [
      key='---AcceptTC---', visible=False),
      gui.Checkbox(text='Reject Revisions',
      auto_size_text=True, key='---RejectTC---', visible=False)],
-    [gui.Checkbox(text='DeleteComments', auto_size_text=True,
+    [gui.Checkbox(text='Delete Comments', auto_size_text=True,
      key='---DeleteCom---', visible=False)],
     [gui.Checkbox(text='Overwrite', auto_size_text=True, key='---Overwrite---',
      visible=False)],
@@ -165,6 +176,8 @@ while True:
                                         MainWindow['---RejectTC---'].get(),
                                         MainWindow['---DeleteCom---'].get(),
                                         MainWindow['---Overwrite---'].get())
+                    case 'Prep_Story':
+                        PrepStoryExport(PathInput)
             MainWindow['---PBar---'].update(100)
             MainWindow['---PBarFile---'].update('')
             MainWindow['---PBarFileStep---'].update('Done!')
@@ -216,5 +229,16 @@ while True:
             MainWindow['---DeleteCom---'].update(visible=True)
             MainWindow['---Overwrite---'].update(visible=True)
             FunctionName = 'Accept Revisions'
-
+        case 'Prep Story Export':
+            MainWindow['---PathInput---'].update(visible=True)
+            MainWindow['---Browse---'].update(visible=True)
+            MainWindow['---Browse---'].FileTypes = filestypes['story'],
+            MainWindow['---Description---'].update(config['Descriptions']
+                                                   ['Prep_Story'])
+            MainWindow['---Run---'].update(visible=True)
+            MainWindow['---AcceptTC---'].update(visible=False)
+            MainWindow['---RejectTC---'].update(visible=False)
+            MainWindow['---DeleteCom---'].update(visible=False)
+            MainWindow['---Overwrite---'].update(visible=False)
+            FunctionName = 'Prep_Story'
 MainWindow.close()
