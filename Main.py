@@ -15,8 +15,8 @@ def Contact_Sheet(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
         MainWindow['---PBarFile---'].update(FileOnly)
-        MainWindow['---PBarFileStep---'].update('Upsaving to Office 2007\
-                                                 format')
+        MainWindow['---PBarFileStep---'].update('Upsaving to Office 2007 ' +
+                                                'format')
         MainWindow['---PBar---'].update((index+1/5)/len(PathList)*100)
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['---PBarFile---'].update(FileOnly)
@@ -87,10 +87,9 @@ def PrepStoryExport(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     print(FullPath)
     MainWindow['---PBarFile---'].update(FileOnly)
-    MainWindow['---PBarFileStep---'].update('Running VBA Macro')
+    MainWindow['---PBarFileStep---'].update('Prepping files')
     MainWindow['---PBar---'].update(index/len(PathList)*100)
-    fn.PrepStoryExport(FullPath, PathOnly, FileOnly,
-                       abspath(r'Bas Files\\Prep_Story.bas').
+    fn.PrepStoryExport(FullPath, abspath(r'Bas Files\\Story.bas').
                        replace('\\', '\\\\'))
 
 

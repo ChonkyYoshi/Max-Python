@@ -4,17 +4,20 @@ def split(FullPath):
     for find in findall(r'[^\/]+?\/', FullPath):
         PathOnly += find
     FileOnly = match(r'(?r)[^\/]+', FullPath).group()
-    return (FullPath, PathOnly, FileOnly)
+    return (FullPath.replace('/', '\\'), PathOnly.replace('/', '\\'), FileOnly)
 
 
 def Upsave(FullPath, PathOnly, FileOnly):
     match FullPath[-3:]:
         case 'doc':
             FullPath = Doc2Docx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
         case 'ppt':
             FullPath = Ppt2Pptx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
         case 'xls':
             FullPath = Xls2Xlsx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
     return (FullPath)
 
 
@@ -23,9 +26,9 @@ def Doc2Docx(FullPath, PathOnly, FileOnly):
 
     WordApp = DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath)
-    Doc.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=12)
+    Doc.SaveAs(PathOnly + FileOnly[:-3] + 'docx', FileFormat=12)
     WordApp.Quit()
-    FullPath = PathOnly + 'No_TC_' + FileOnly[:-3] + 'docx'
+    FullPath = PathOnly + FileOnly[:-3] + 'docx'
     return (FullPath)
 
 
@@ -58,9 +61,10 @@ def Xls2Xlsx(FullPath, PathOnly, FileOnly):
 
     XlApp = DispatchEx('Excel.Application')
     Xl = XlApp.Workbooks.Open(FullPath)
-    Xl.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=51)
+    Xl.SaveAs(PathOnly + FileOnly[:-4], FileFormat=51)
     XlApp.Quit()
-    return (PathOnly + 'No_TC_' + FileOnly[:-3] + 'xlsx')
+    FullPath = PathOnly + FileOnly[:-3] + 'xlsx'
+    return (FullPath)
 
 
 def Ppt2Pptx(FullPath, PathOnly, FileOnly):
@@ -68,9 +72,10 @@ def Ppt2Pptx(FullPath, PathOnly, FileOnly):
 
     PptApp = DispatchEx('PowerPoint.Application')
     Ppt = PptApp.Presentations.Open(FullPath, 0, 0, 0)
-    Ppt.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=24)
+    Ppt.SaveAs(PathOnly + FileOnly[:-4], FileFormat=24)
     PptApp.Quit()
-    return (PathOnly + 'No_TC_' + FileOnly[:-3] + 'pptx')
+    FullPath = PathOnly + FileOnly[:-3] + 'pptx'
+    return (FullPath)
 
 
 def ExtractImages(FullPath, PathOnly, FileOnly):
@@ -110,7 +115,7 @@ def FillCS(Tempdir, PathOnly, FileOnly):
     from os import walk, makedirs
     from shutil import rmtree
 
-    makedirs(PathOnly + 'Contact Sheets', exist_ok=True)
+    makedirs(PathOnly + '\\Contact Sheets', exist_ok=True)
     CS = docx.Document()
 
     for PicRoot, PicPath, PicFile in walk(Tempdir):
@@ -131,10 +136,10 @@ def FillCS(Tempdir, PathOnly, FileOnly):
                 for location in Locations:
                     Table.cell(2, 0).add_paragraph(
                         location, style='List Bullet')
-                    CS.add_section()
+                CS.add_section()
             else:
                 CS.add_section()
-    CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
+    CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly[:-5] + '.docx')
     rmtree(Tempdir)
 
 
@@ -199,14 +204,12 @@ def AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom,
     WordApp.Quit()
 
 
-def PrepStoryExport(FullPath, PathOnly, FileOnly, BasPath):
-    import docx
+def PrepStoryExport(FullPath, BasPath):
+    from win32com.client import DispatchEx
 
-    doc = docx.Document(FullPath)
-    for par in doc.paragraphs:
-        for run in par.runs:
-            run.font.hidden = True
-
-    for table in doc.tables:
-        for cell in table.cells:
-    doc.save(PathOnly + 'Prep_' + FileOnly)
+    print(FullPath)
+    WordApp = DispatchEx('Word.Application')
+    Doc = WordApp.Documents.Open(FullPath)
+    Doc.VBProject.VBComponents.Import(BasPath)
+    Doc.Application.Run('Story')
+    WordApp.Quit()
