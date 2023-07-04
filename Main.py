@@ -27,7 +27,7 @@ def Contact_Sheet(PathInput):
     MainWindow['---PBarFileStep---'].update('cleaning up jpeg and jpg')
     MainWindow['---PBar---'].update((index+3/5)/len(PathList)*100)
     MainWindow.refresh()
-    fn.CleanTempDir(PathOnly + 'Temp')
+    fn.CleanTempDir(PathOnly.replace('\\', '/') + 'Temp')
     MainWindow['---PBarFileStep---'].update('Filling in Contact Sheet')
     MainWindow['---PBar---'].update((index+4/5)/len(PathList)*100)
     MainWindow.refresh()

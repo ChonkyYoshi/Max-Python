@@ -34,10 +34,12 @@ def Doc2Docx(FullPath, PathOnly, FileOnly):
 
 def Doc2PDF(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom, Overwrite):
     from win32com.client import DispatchEx
+    from os import makedirs
 
     WordApp = DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath)
 
+    makedirs(PathOnly + 'PDFs', exist_ok=True)
     if Doc.Revisions.Count > 0 and AccTC:
         Doc.AcceptAllRevisions()
     elif Doc.Revisions.Count > 0 and RejTC:
@@ -46,13 +48,8 @@ def Doc2PDF(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom, Overwrite):
         Doc.DeleteAllComments()
     if Overwrite:
         Doc.Save()
-    match FileOnly[-1]:
-        case 'x':
-            Doc.SaveAs(PathOnly + FileOnly[:-5], FileFormat=17)
-        case 'm':
-            Doc.SaveAs(PathOnly + FileOnly[:-5], FileFormat=17)
-        case 'c':
-            Doc.SaveAs(PathOnly + FileOnly[:-4], FileFormat=17)
+    else:
+        Doc.SaveAs(PathOnly + 'PDFs/' + FileOnly + r'.pdf', FileFormat=17)
     WordApp.Quit()
 
 
@@ -131,15 +128,15 @@ def FillCS(Tempdir, PathOnly, FileOnly):
                     PicRoot.replace('\\', '/') + '/' + pic,
                     width=(CS.sections[0].page_width - (CS.sections[0]
                            .right_margin + CS.sections[0].left_margin)))
-            if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
-                Locations = LocateImage(Tempdir, pic)
-                for location in Locations:
-                    Table.cell(2, 0).add_paragraph(
-                        location, style='List Bullet')
-                CS.add_section()
-            else:
-                CS.add_section()
-    CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly[:-5] + '.docx')
+                if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
+                    Locations = LocateImage(Tempdir, pic)
+                    for location in Locations:
+                        Table.cell(2, 0).add_paragraph(
+                            location, style='List Bullet')
+                    CS.add_section()
+                else:
+                    CS.add_section()
+    CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
     rmtree(Tempdir)
 
 
