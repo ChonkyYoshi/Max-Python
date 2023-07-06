@@ -4,17 +4,20 @@ def split(FullPath):
     for find in findall(r'[^\/]+?\/', FullPath):
         PathOnly += find
     FileOnly = match(r'(?r)[^\/]+', FullPath).group()
-    return (FullPath, PathOnly, FileOnly)
+    return (FullPath.replace('\\', '/'), PathOnly.replace('\\', '/'), FileOnly)
 
 
 def Upsave(FullPath, PathOnly, FileOnly):
     match FullPath[-3:]:
         case 'doc':
             FullPath = Doc2Docx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
         case 'ppt':
             FullPath = Ppt2Pptx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
         case 'xls':
             FullPath = Xls2Xlsx(FullPath, PathOnly, FileOnly)
+            FullPath, PathOnly, FileOnly = split(FullPath)
     return (FullPath)
 
 
@@ -22,55 +25,33 @@ def Doc2Docx(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
 
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath)
-    Doc.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=12)
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+    Doc.SaveAs(PathOnly + FileOnly[:-3] + 'docx', FileFormat=12)
     WordApp.Quit()
-    FullPath = PathOnly + 'No_TC_' + FileOnly[:-3] + 'docx'
+    FullPath = PathOnly + FileOnly[:-3] + 'docx'
     return (FullPath)
-
-
-def Doc2PDF(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom, Overwrite):
-    from win32com.client import DispatchEx
-
-    WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath)
-
-    if Doc.Revisions.Count > 0 and AccTC:
-        Doc.AcceptAllRevisions()
-    elif Doc.Revisions.Count > 0 and RejTC:
-        Doc.RejectAllRevisions()
-    if Doc.Comments.Count > 0 and DelCom:
-        Doc.DeleteAllComments()
-    if Overwrite:
-        Doc.Save()
-    match FileOnly[-1]:
-        case 'x':
-            Doc.SaveAs(PathOnly + FileOnly[:-5], FileFormat=17)
-        case 'm':
-            Doc.SaveAs(PathOnly + FileOnly[:-5], FileFormat=17)
-        case 'c':
-            Doc.SaveAs(PathOnly + FileOnly[:-4], FileFormat=17)
-    WordApp.Quit()
 
 
 def Xls2Xlsx(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
 
     XlApp = DispatchEx('Excel.Application')
-    Xl = XlApp.Workbooks.Open(FullPath)
-    Xl.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=51)
+    Xl = XlApp.Workbooks.Open(FullPath.replace('/', '\\'))
+    Xl.SaveAs(PathOnly + FileOnly[:-4], FileFormat=51)
     XlApp.Quit()
-    return (PathOnly + 'No_TC_' + FileOnly[:-3] + 'xlsx')
+    FullPath = PathOnly + FileOnly[:-3] + 'xlsx'
+    return (FullPath)
 
 
 def Ppt2Pptx(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
 
     PptApp = DispatchEx('PowerPoint.Application')
-    Ppt = PptApp.Presentations.Open(FullPath, 0, 0, 0)
-    Ppt.SaveAs(PathOnly + 'No_TC_' + FileOnly[:-4], FileFormat=24)
+    Ppt = PptApp.Presentations.Open(FullPath.replace('/', '\\'), 0, 0, 0)
+    Ppt.SaveAs(PathOnly + FileOnly[:-4], FileFormat=24)
     PptApp.Quit()
-    return (PathOnly + 'No_TC_' + FileOnly[:-3] + 'pptx')
+    FullPath = PathOnly + FileOnly[:-3] + 'pptx'
+    return (FullPath)
 
 
 def ExtractImages(FullPath, PathOnly, FileOnly):
@@ -110,7 +91,7 @@ def FillCS(Tempdir, PathOnly, FileOnly):
     from os import walk, makedirs
     from shutil import rmtree
 
-    makedirs(PathOnly + 'Contact Sheets', exist_ok=True)
+    makedirs(PathOnly + '\\Contact Sheets', exist_ok=True)
     CS = docx.Document()
 
     for PicRoot, PicPath, PicFile in walk(Tempdir):
@@ -126,14 +107,14 @@ def FillCS(Tempdir, PathOnly, FileOnly):
                     PicRoot.replace('\\', '/') + '/' + pic,
                     width=(CS.sections[0].page_width - (CS.sections[0]
                            .right_margin + CS.sections[0].left_margin)))
-            if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
-                Locations = LocateImage(Tempdir, pic)
-                for location in Locations:
-                    Table.cell(2, 0).add_paragraph(
-                        location, style='List Bullet')
+                if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
+                    Locations = LocateImage(Tempdir, pic)
+                    for location in Locations:
+                        Table.cell(2, 0).add_paragraph(
+                            location, style='List Bullet')
                     CS.add_section()
-            else:
-                CS.add_section()
+                else:
+                    CS.add_section()
     CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
     rmtree(Tempdir)
 
@@ -152,48 +133,183 @@ def LocateImage(TempDir, ImageName):
     return (Locations)
 
 
-def BilTables(FullPath, PathOnly, FileOnly, BasPath):
+def BilTables(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
+    from os.path import abspath
 
+    BasPath = abspath(r'BilWord.bas')
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath)
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
     Doc.VBProject.VBComponents.Import(BasPath)
     Doc.Application.Run('Bil_Tables')
     WordApp.Quit()
-    return (PathOnly + '\\Temp_' + FileOnly)
+    return (PathOnly.replace('/', '\\') + 'Temp_' + FileOnly)
 
 
-def BilText(FullPath, BasPath):
+def BilText(FullPath):
     from win32com.client import DispatchEx
+    from os.path import abspath
 
+    BasPath = abspath(r'BilWord.bas')
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath)
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
     Doc.VBProject.VBComponents.Import(BasPath)
     Doc.Application.Run('Bil_Text')
     WordApp.Quit()
 
 
-def AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom,
+def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
+    from win32com.client import DispatchEx
+    from os import makedirs
+
+    WordApp = DispatchEx('Word.Application')
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+
+    makedirs(PathOnly + 'PDFs', exist_ok=True)
+    if Doc.Revisions.Count > 0 and ARev:
+        Doc.AcceptAllRevisions()
+    if Doc.Revisions.Count > 0 and DRev:
+        Doc.RejectAllRevisions()
+    if Doc.Comments.Count > 0 and Com:
+        Doc.DeleteAllComments()
+    if Overwrite:
+        Doc.Save()
+    Doc.SaveAs(PathOnly.replace('/', '\\') + 'PDFs\\' + FileOnly + r'.pdf',
+               FileFormat=17)
+    WordApp.Quit()
+
+
+def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
                     Overwrite):
     from win32com.client import DispatchEx
 
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath)
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
 
-    if Doc.Revisions.Count > 0 and AccTC:
+    if Doc.Revisions.Count > 0 and ARev:
         Doc.AcceptAllRevisions()
-    elif Doc.Revisions.Count > 0 and RejTC:
+    if Doc.Revisions.Count > 0 and DRev:
         Doc.RejectAllRevisions()
-    if Doc.Comments.Count > 0 and DelCom:
+    if Doc.Comments.Count > 0 and Com:
         Doc.DeleteAllComments()
     if Overwrite:
         Doc.Save()
     else:
         match FileOnly[-1]:
             case 'x':
-                Doc.SaveAs(PathOnly + 'NoRev_' + FileOnly[:-5], FileFormat=12)
+                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
+                           FileOnly[:-5], FileFormat=12)
             case 'm':
-                Doc.SaveAs(PathOnly + 'NoRev_' + FileOnly[:-5], FileFormat=12)
+                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
+                           FileOnly[:-5], FileFormat=12)
             case 'c':
-                Doc.SaveAs(PathOnly + 'NoRev_' + FileOnly[:-4], FileFormat=0)
+                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
+                           FileOnly[:-4], FileFormat=0)
     WordApp.Quit()
+
+
+def PrepStoryExport(FullPath):
+    from win32com.client import DispatchEx
+    from os.path import abspath
+
+    BasPath = abspath(r'StoryWord.bas')
+    WordApp = DispatchEx('Word.Application')
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+    Doc.VBProject.VBComponents.Import(BasPath)
+    Doc.Application.Run('Story')
+    WordApp.Quit()
+
+
+def Unhide(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Row, Col, Sheet,
+           Shp, Sld, Overwrite):
+    from win32com.client import DispatchEx
+    from os.path import abspath
+
+    match FileOnly[-4:]:
+        case 'docx' | '.doc' | 'docm':
+            BasPath = abspath(r'UnhideWord.bas')
+            WordApp = DispatchEx('Word.Application')
+            Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+            Doc.VBProject.VBComponents.Import(BasPath)
+            if Doc.Revisions.Count > 0 and ARev:
+                Doc.AcceptAllRevisions()
+            if Doc.Revisions.Count > 0 and DRev:
+                Doc.RejectAllRevisions()
+            if Com and Doc.Comments.Count > 0:
+                Doc.DeleteAllComments()
+            Doc.Application.Run('Unhide')
+            if Overwrite:
+                Doc.Save()
+            else:
+                match FileOnly[-1]:
+                    case 'x':
+                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                   FileOnly[:-5], FileFormat=12)
+                    case 'm':
+                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                   FileOnly[:-5], FileFormat=13)
+                    case 'c':
+                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                   FileOnly[:-4], FileFormat=0)
+            Doc.VBProject.VBComponents.Remove(
+                Doc.VBProject.VBComponents.Item("PrepToolKit1"))
+            WordApp.Quit()
+        case 'xlsx' | '.xls' | 'xlsm':
+            BasPath = abspath(r'UnhideExcel.bas')
+            XlApp = DispatchEx('Excel.Application')
+            Xl = XlApp.Workbooks.Open(FullPath.replace('/', '\\'))
+            Xl.VBProject.VBComponents.Import(BasPath)
+            if Sheet:
+                Xl.Application.Run('UnhideSheet')
+            if Row:
+                Xl.Application.Run('UnhideRow')
+            if Col:
+                Xl.Application.Run('UnhideCol')
+            if Overwrite:
+                Xl.Save()
+            else:
+                match FileOnly[-1]:
+                    case 'x':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-5],
+                                  FileFormat=51)
+                    case 'm':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-5],
+                                  FileFormat=52)
+                    case 's':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-4],
+                                  FileFormat=43)
+            Xl.VBProject.VBComponents.Remove(
+                Xl.VBProject.VBComponents.Item("PrepToolKit1"))
+            XlApp.Quit()
+        case 'pptx' | '.ppt' | 'pptm':
+            BasPath = abspath(r'UnhidePPT.bas')
+            PptApp = DispatchEx('PowerPoint.Application')
+            Ppt = PptApp.Presentations.Open(FullPath.replace('/', '\\'),
+                                            0, 0, 0)
+            Ppt.VBProject.VBComponents.Import(BasPath)
+            if Sld:
+                Ppt.Application.Run('UnhideSlide')
+            if Shp:
+                Ppt.Application.Run('UnhideShape')
+            if Overwrite:
+                Ppt.Save()
+            else:
+                match FileOnly[-1]:
+                    case 'x':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-5],
+                                  FileFormat=24)
+                    case 'm':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-5],
+                                  FileFormat=25)
+                    case 't':
+                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
+                                  FileOnly[:-4],
+                                  FileFormat=1)
+            Xl.VBProject.VBComponents.Remove(
+                Xl.VBProject.VBComponents.Item("PrepToolKit1"))
+            XlApp.Quit()
