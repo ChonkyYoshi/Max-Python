@@ -28,12 +28,6 @@ def SetOptions(Function):
                                              ['Contact_Sheet'])
         case 'Bilingual_Table':
             ClearOptions()
-            MainWindow['R1O1'].update(text='Accept Revisions')
-            MainWindow['R1O1'].update(visible=True)
-            MainWindow['R2O1'].update(text='Reject Revisions')
-            MainWindow['R2O1'].update(visible=True)
-            MainWindow['R3O1'].update(text='Delete Comments')
-            MainWindow['R3O1'].update(visible=True)
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(config['Descriptions']
                                              ['Bilingual_Table'])

@@ -1,8 +1,8 @@
 from cx_Freeze import setup, Executable
 
-includefiles = ['Functions.py', 'config.ini', 'Bas Files\\BilWord.bas',
-                'Bas Files\\StoryWord.bas', 'Bas Files\\UnhideExcel.bas',
-                'Bas Files\\UnhidePPT.bas', 'Bas Files\\UnhideWord.bas']
+includefiles = ['Functions.py', 'config.ini', 'BilWord.bas',
+                'StoryWord.bas', 'UnhideExcel.bas',
+                'UnhidePPT.bas', 'UnhideWord.bas']
 includes = []
 excludes = []
 
