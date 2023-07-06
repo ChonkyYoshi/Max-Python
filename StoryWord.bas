@@ -20,6 +20,7 @@ For Each Tb In ActiveDocument.Tables
     End If
 Next Tb
 
+ActiveDocument.VBProject.VBComponents.Remove(ActiveDocument.VBProject.VBComponents.Item("PrepToolKit1"))
 ActiveDocument.SaveAs2 FileName:=ActiveDocument.Path & "/Prep_" & Right(ActiveDocument.Name, Len(ActiveDocument.Name) - 5)
 ActiveDocument.Close (wdDoNotSaveChanges)
 End Sub

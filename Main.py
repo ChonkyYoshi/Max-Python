@@ -134,18 +134,14 @@ def Bilingual(PathInput):
         MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Upsaving to Office 2007 format...')
-    MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
-    FullPath = fn.Upsave(FullPath)
-    MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Processing tables...')
     MainWindow['PBar'].update((index + 2/5)/len(PathList)*100)
-    FullPath = fn.BilTables(FullPath.replace('/', '\\\\'), PathOnly, FileOnly,)
+    FullPath = fn.BilTables(FullPath.replace('\\', '/'), PathOnly, FileOnly,)
     MainWindow.refresh()
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Processing regular text...')
     MainWindow['PBar'].update((index + 3/5)/len(PathList)*100)
-    fn.BilText(FullPath.replace('/', '\\\\'))
+    fn.BilText(FullPath.replace('\\', '/'))
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Removing Temp file...')
     MainWindow['PBar'].update((index + 4/5)/len(PathList)*100)
@@ -153,22 +149,42 @@ def Bilingual(PathInput):
     remove(FullPath)
 
 
-def Doc2PDF(PathInput, AccTC, RejTC, DelCom, Overwrite):
+def Doc2PDF(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Saving as PDF...')
-    MainWindow['PBar'].update(index/len(PathList)*100)
-    FullPath = fn.Doc2PDF(FullPath, PathOnly, FileOnly, AccTC, RejTC, DelCom,
-                          Overwrite)
+    if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
+        gui.popup_error('Both Accept and Reject revisions are ticked!\n\
+        Please choose only one and try again', title='impossible options',
+                        modal=True)
+        global Break
+        Break = True
+    else:
+        MainWindow['PBarFile'].update(FileOnly)
+        MainWindow['PBarFileStep'].update('Saving as PDF...')
+        MainWindow['PBar'].update(index/len(PathList)*100)
+        FullPath = fn.Doc2PDF(FullPath, PathOnly, FileOnly,
+                              ARev=MainWindow['R1O1'].get(),
+                              DRev=MainWindow['R2O1'].get(),
+                              Com=MainWindow['R3O1'].get(),
+                              Overwrite=MainWindow['R2O1'].get())
 
 
-def AcceptRevisions(PathInput, AccTC, RejTC, DelCom, Overwrite):
+def AcceptRevisions(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Accepting revisions...')
-    MainWindow['PBar'].update(index/len(PathList)*100)
-    fn.AcceptRevisions(FullPath, PathOnly, FileOnly, AccTC, RejTC,
-                       DelCom, Overwrite)
+    if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
+        gui.popup_error('Both Accept and Reject revisions are ticked!\n\
+        Please choose only one and try again', title='impossible options',
+                        modal=True)
+        global Break
+        Break = True
+    else:
+        MainWindow['PBarFile'].update(FileOnly)
+        MainWindow['PBarFileStep'].update('Accepting revisions...')
+        MainWindow['PBar'].update(index/len(PathList)*100)
+        fn.AcceptRevisions(FullPath, PathOnly, FileOnly,
+                           ARev=MainWindow['R1O1'].get(),
+                           DRev=MainWindow['R2O1'].get(),
+                           Com=MainWindow['R3O1'].get(),
+                           Overwrite=MainWindow['R2O1'].get())
 
 
 def PrepStoryExport(PathInput):
@@ -190,7 +206,8 @@ def Unhide(PathInput):
         FullPath, PathOnly, FileOnly = fn.split(PathInput)
         MainWindow['PBarFile'].update(FileOnly)
         MainWindow['PBarFileStep'].update('Unhiding...')
-        fn.Unhide(FullPath, PathOnly, FileOnly, Rev=MainWindow['R1O1'].get(),
+        fn.Unhide(FullPath, PathOnly, FileOnly,
+                  ARev=MainWindow['R1O1'].get(), DRev=MainWindow['R2O1'].get(),
                   Com=MainWindow['R3O1'].get(), Row=MainWindow['R1O2'].get(),
                   Col=MainWindow['R2O2'].get(), Sheet=MainWindow['R3O2'].get(),
                   Shp=MainWindow['R3O1'].get(), Sld=MainWindow['R3O2'].get(),
@@ -290,7 +307,7 @@ while True:
                     case 'Bilingual_Table':
                         Bilingual(PathInput)
                     case 'Doc2PDF':
-                        break
+                        Doc2PDF(PathInput)
                     case 'Accept Revisions':
                         break
                     case 'Prep_Story':

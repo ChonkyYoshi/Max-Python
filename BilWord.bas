@@ -21,9 +21,9 @@ For Each Tb in ActiveDocument.Tables
 	Next c
 Next Tb
 
+ActiveDocument.VBProject.VBComponents.Remove(ActiveDocument.VBProject.VBComponents.Item("PrepToolKit1"))
 ActiveDocument.SaveAs2 FileName:=ActiveDocument.Path & "/Temp_" & ActiveDocument.Name
 ActiveDocument.Close (wdDoNotSaveChanges)
-
 End Sub
 
 Sub Bil_Text()
@@ -58,6 +58,7 @@ For Each Tb In ActiveDocument.Tables
     Tb.Rows.WrapAroundText = False
 Next Tb
 
-ActiveDocument.SaveAs2 FileName:=ActiveDocument.Path & "/Bil_" & Right(ActiveDocument.Name, Len(ActiveDocument.Name) -5)
+ActiveDocument.VBProject.VBComponents.Remove(ActiveDocument.VBProject.VBComponents.Item("PrepToolKit1"))
+ActiveDocument.SaveAs2 FileName:=ActiveDocument.Path & "/Bil_" & ActiveDocument.Name
 ActiveDocument.Close (wdDoNotSaveChanges)
 End Sub
