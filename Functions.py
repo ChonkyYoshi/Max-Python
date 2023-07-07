@@ -133,15 +133,18 @@ def LocateImage(TempDir, ImageName):
     return (Locations)
 
 
-def BilTables(FullPath, PathOnly, FileOnly):
+def BilTables(PathOnly, FileOnly):
     from win32com.client import DispatchEx
 
     WordApp = DispatchEx('Word.Application')
     WordApp.Visible = False
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
+    Doc = WordApp.Documents.Open(PathOnly.replace('/', '\\') + FileOnly,
+                                 Visible=False)
     Doc = WordApp.ActiveDocument
     if Doc.Tables.Count > 0:
-        for table in Doc.Tables:
+        for index, table in enumerate(Doc.Tables):
+            yield f'Proccessing table {index + 1} of {Doc.Tables.Count}',\
+                   index, Doc.Tables.Count
             for cell in table.Range.Cells:
                 for i in range(1, cell.Range.Paragraphs.Count + 1):
                     cell.Range.Paragraphs.Add()
@@ -150,19 +153,26 @@ def BilTables(FullPath, PathOnly, FileOnly):
                         Range.FormattedText
                     cell.Range.Paragraphs(i).Range.Font.Hidden = True
 
+    Doc.SaveAs2(PathOnly + 'Bil_' + FileOnly)
+    WordApp.Quit()
 
-def BilText(FullPath, PathOnly, FileOnly):
-    from win32com.client import GetActiveObject
 
-    WordApp = GetActiveObject('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
+def BilText(PathOnly, FileOnly):
+    from win32com.client import DispatchEx
+
+    WordApp = DispatchEx('Word.Application')
+    WordApp.Visible = False
+    Doc = WordApp.Documents.Open(PathOnly.replace('/', '\\') + 'Bil_' +
+                                 FileOnly, Visible=False)
     Doc = WordApp.ActiveDocument
 
     if Doc.Tables.Count > 0:
         for table in Doc.Tables:
             table.Rows.WrapAroundText = True
 
-    for par in Doc.Paragraphs:
+    i = Doc.Paragraphs.Count
+    for index, par in enumerate(Doc.Paragraphs):
+        yield f'Proccessing paragraph {index} of {i}', index, i
         if not par.Range.Information(12):
             par.Range.Find.Execute(FindText="^t", ReplaceWith=" ", Replace=2)
             par.Range.Paragraphs.Add(par.Range)
@@ -180,7 +190,7 @@ def BilText(FullPath, PathOnly, FileOnly):
     for table in Doc.Tables:
         table.Rows.WrapAroundText = False
 
-    Doc.SaveAs2(PathOnly + 'Bil_' + FileOnly)
+    Doc.Save()
     WordApp.Quit()
 
 

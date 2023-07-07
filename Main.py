@@ -127,14 +127,21 @@ def Bilingual(PathInput):
         MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Processing tables...')
-    MainWindow['PBar'].update((index + 2/5)/len(PathList)*100)
-    fn.BilTables(FullPath.replace('\\', '/'), PathOnly, FileOnly)
-    MainWindow.refresh()
+    for CurrentStep, curindex, max in (fn.BilTables(PathOnly.
+                                                    replace('\\', '/'),
+                                                    FileOnly)):
+        MainWindow['PBar'].update((index +
+                                   ((2+(curindex/max))/5)/len(PathList)*100))
+        MainWindow['PBarFileStep'].update(CurrentStep)
+        MainWindow.refresh()
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Processing regular text...')
-    MainWindow['PBar'].update((index + 3/5)/len(PathList)*100)
-    fn.BilText(FullPath.replace('\\', '/'), PathOnly, FileOnly)
+    for CurrentStep, curindex, max in fn.BilText(PathOnly.replace('\\', '/'),
+                                                 FileOnly):
+        MainWindow['PBar'].update((index +
+                                   ((3+(curindex/max))/5)/len(PathList)*100))
+        MainWindow['PBarFileStep'].update(CurrentStep)
+        MainWindow.refresh()
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Removing Temp file...')
     MainWindow['PBar'].update((index + 4/5)/len(PathList)*100)
