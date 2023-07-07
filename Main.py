@@ -2,7 +2,6 @@ import PySimpleGUI as gui
 import Functions as fn
 from configparser import ConfigParser
 from os.path import isfile
-from os import remove
 
 Break = False
 config = ConfigParser()
@@ -130,17 +129,16 @@ def Bilingual(PathInput):
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Processing tables...')
     MainWindow['PBar'].update((index + 2/5)/len(PathList)*100)
-    FullPath = fn.BilTables(FullPath.replace('\\', '/'), PathOnly, FileOnly,)
+    fn.BilTables(FullPath.replace('\\', '/'), PathOnly, FileOnly)
     MainWindow.refresh()
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Processing regular text...')
     MainWindow['PBar'].update((index + 3/5)/len(PathList)*100)
-    fn.BilText(FullPath.replace('\\', '/'))
+    fn.BilText(FullPath.replace('\\', '/'), PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Removing Temp file...')
     MainWindow['PBar'].update((index + 4/5)/len(PathList)*100)
     MainWindow.refresh()
-    remove(FullPath)
 
 
 def Doc2PDF(PathInput):

@@ -135,26 +135,52 @@ def LocateImage(TempDir, ImageName):
 
 def BilTables(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
-    from os.path import abspath
 
-    BasPath = abspath(r'BilWord.bas')
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-    Doc.VBProject.VBComponents.Import(BasPath)
-    Doc.Application.Run('Bil_Tables')
-    WordApp.Quit()
-    return (PathOnly.replace('/', '\\') + 'Temp_' + FileOnly)
+    WordApp.Visible = False
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
+    Doc = WordApp.ActiveDocument
+    if Doc.Tables.Count > 0:
+        for table in Doc.Tables:
+            for cell in table.Range.Cells:
+                for i in range(1, cell.Range.Paragraphs.Count + 1):
+                    cell.Range.Paragraphs.Add()
+                    cell.Range.Paragraphs(cell.Range.Paragraphs.Count).\
+                        Range.FormattedText = cell.Range.Paragraphs(i).\
+                        Range.FormattedText
+                    cell.Range.Paragraphs(i).Range.Font.Hidden = True
 
 
-def BilText(FullPath):
-    from win32com.client import DispatchEx
-    from os.path import abspath
+def BilText(FullPath, PathOnly, FileOnly):
+    from win32com.client import GetActiveObject
 
-    BasPath = abspath(r'BilWord.bas')
-    WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-    Doc.VBProject.VBComponents.Import(BasPath)
-    Doc.Application.Run('Bil_Text')
+    WordApp = GetActiveObject('Word.Application')
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
+    Doc = WordApp.ActiveDocument
+
+    if Doc.Tables.Count > 0:
+        for table in Doc.Tables:
+            table.Rows.WrapAroundText = True
+
+    for par in Doc.Paragraphs:
+        if not par.Range.Information(12):
+            par.Range.Find.Execute(FindText="^t", ReplaceWith=" ", Replace=2)
+            par.Range.Paragraphs.Add(par.Range)
+            par.Previous(1).Range.FormattedText = par.Range.FormattedText
+            par.Previous(1).Range.Font.Hidden = True
+            Doc.Range(par.Previous(1).Range.start, par.Range.End).\
+                ConvertToTable(Separator=0, NumRows=1, NumColumns=2)
+
+    Doc.Content.Find.Execute(FindText="^p^p", ReplaceWith="^p", Replace=2)
+
+    for table in Doc.Tables:
+        table.Select()
+        Doc.Application.Selection.SplitTable()
+
+    for table in Doc.Tables:
+        table.Rows.WrapAroundText = False
+
+    Doc.SaveAs2(PathOnly + 'Bil_' + FileOnly)
     WordApp.Quit()
 
 
@@ -163,7 +189,7 @@ def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
     from os import makedirs
 
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
 
     makedirs(PathOnly + 'PDFs', exist_ok=True)
     if Doc.Revisions.Count > 0 and ARev:
