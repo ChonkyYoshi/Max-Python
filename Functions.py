@@ -210,8 +210,8 @@ def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
         Doc.DeleteAllComments()
     if Overwrite:
         Doc.Save()
-    Doc.SaveAs(PathOnly.replace('/', '\\') + 'PDFs\\' + FileOnly + r'.pdf',
-               FileFormat=17)
+    Doc.SaveAs2(PathOnly.replace('/', '\\') + 'PDFs\\' + FileOnly + r'.pdf',
+                FileFormat=17)
     WordApp.Quit()
 
 
@@ -233,26 +233,38 @@ def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
     else:
         match FileOnly[-1]:
             case 'x':
-                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
-                           FileOnly[:-5], FileFormat=12)
+                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
+                            FileOnly, FileFormat=12)
             case 'm':
-                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
-                           FileOnly[:-5], FileFormat=12)
+                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
+                            FileOnly, FileFormat=13)
             case 'c':
-                Doc.SaveAs(PathOnly.replace('/', '\\') + 'NoRev_' +
-                           FileOnly[:-4], FileFormat=0)
+                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
+                            FileOnly[:-4], FileFormat=0)
     WordApp.Quit()
 
 
-def PrepStoryExport(FullPath):
+def PrepStoryExport(FullPath, PathOnly, FileOnly):
     from win32com.client import DispatchEx
-    from os.path import abspath
+    from regex import match
 
-    BasPath = abspath(r'StoryWord.bas')
     WordApp = DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-    Doc.VBProject.VBComponents.Import(BasPath)
-    Doc.Application.Run('Story')
+    WordDoc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+    WordDoc.Select()
+    WordDoc.Application.Selection.Font.Hidden = True
+    for table in WordDoc.Tables:
+        try:
+            if match('Translation', table.Cell(1, 4).Range.Text):
+                table.Columns(4).Select()
+                WordDoc.Application.Selection.Font.Hidden = False
+                table.Columns(4).Select()
+                WordApp.Selection.Find.Text = "Valuation risks"
+                WordApp.Selection.Find.Replacement.Text = "Test"
+                WordApp.Selection.Find.Execute(Replace=2,
+                                               Forward=True)
+        except Exception:
+            continue
+    WordDoc.SaveAs2(PathOnly + 'Prep_' + FileOnly, FileFormat=12)
     WordApp.Quit()
 
 

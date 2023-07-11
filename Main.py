@@ -191,7 +191,7 @@ def PrepStoryExport(PathInput):
     MainWindow['PBarFile'].update(FileOnly)
     MainWindow['PBarFileStep'].update('Prepping exports...')
     MainWindow['PBar'].update(index/len(PathList)*100)
-    fn.PrepStoryExport(FullPath)
+    fn.PrepStoryExport(FullPath, PathOnly, FileOnly)
 
 
 def Unhide(PathInput):
