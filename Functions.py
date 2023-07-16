@@ -134,31 +134,30 @@ def LocateImage(TempDir, ImageName):
 
 
 def BilTable(PathOnly, FileOnly):
-    # from win32com.client import DispatchEx
     import docx
     import helper as hp
-    # from os import remove
 
     li = list()
     doc = docx.Document(PathOnly + FileOnly)
     for index, table in enumerate(doc.tables):
         yield f'processing table {index + 1} of {len(doc.tables)}',\
             index/len(doc.tables)
-        for i in range(len(table.columns)):
-            for cell in table.column_cells(i):
-                li.append(cell)
-        li = list(dict.fromkeys(li))
-        for j in li:
-            for par in j.paragraphs:
-                prevpar = par.insert_paragraph_before()
-                hp.CopyParFormatting(prevpar, par)
-                for run in par.runs:
-                    prevrun = prevpar.add_run()
-                    prevrun.text = run.text
-                    hp.CopyRunFormatting(prevrun, run)
-                    prevrun.font.hidden = True
+        for c in range(len(table.columns)):
+            for r in range(len(table.rows)):
+                if table.cell(r, c)._tc not in li:
+                    li.append(table.cell(r, c)._tc)
+                    for par in table.cell(r, c).paragraphs:
+                        prevpar = par.insert_paragraph_before()
+                        hp.CopyParFormatting(prevpar, par)
+                        for run in par.runs:
+                            prevrun = prevpar.add_run()
+                            prevrun.text = run.text
+                            hp.CopyRunFormatting(prevrun, run)
+                            prevrun.font.hidden = True
         li.clear()
-    for par in doc.paragraphs:
+    i = len(doc.paragraphs)
+    for index, par in enumerate(doc.paragraphs):
+        yield f'processing paragraph {index + 1} of {i}', index/i
         table = doc.add_table(rows=1, cols=2)
         par._p.addnext(table._tbl)
         SPar = table.cell(0, 0).paragraphs[0]
@@ -174,55 +173,6 @@ def BilTable(PathOnly, FileOnly):
             hp.CopyRunFormatting(TRun, run)
         par._element.getparent().remove(par._element)
     doc.save(PathOnly + 'Bil_' + FileOnly)
-
-    # WordApp = DispatchEx('Word.Application')
-    # WordDoc = WordApp.Documents.Open(PathOnly + '___Temp___.docx')
-    # WordApp.Visible = False
-    # WordDoc = WordApp.ActiveDocument
-
-    # WordDoc.ConvertNumbersToText()
-    # max = WordDoc.Paragraphs.Count
-
-    # for table in WordDoc.Tables:
-    #     table.Rows.WrapAroundText = True
-    # skip = False
-    # for index, par in enumerate(WordDoc.Paragraphs):
-    #     yield f'processing paragraph {index +1} of {max}', index/max
-    #     if not par.Range.Information(12):
-    #         par.Range.ConvertToTable(0)
-    #         skip = True
-    #     else:
-    #         if skip:
-    #             table = par.Previous(1).Range.Tables(1)
-    #             table.Columns.Add()
-    #             table.Columns(1).Select()
-    #             WordApp.Selection.Copy()
-    #             WordApp.Selection.Font.Hidden = True
-    #             table.Columns(2).Select()
-    #             WordApp.Selection.PasteAndFormat(23)
-    #             table.Columns(3).Delete()
-    #             skip = False
-    #             table.AutoFitBehavior(2)
-    #             table = WordApp.Selection.Tables(1)
-    #             for i in range(1, table.Rows.Count + 1):
-    #                 for j in range(1, table.Columns.Count + 1):
-    #                     rng = table.Cell(i, j).Range
-    #                     if rng.Paragraphs.Count > 1 and len(rng.Paragraphs(
-    #                                                        rng.
-    #                                                        Paragraphs.Count).
-    #                                                        Range.
-    #                                                        FormattedText) == 2:
-    #                         rng = rng.Paragraphs(rng.Paragraphs.Count).Range
-    #                         rng.Start = rng.Start - 1
-    #                         rng.End = rng.End + 1
-    #                         rng.Delete()
-    # for table in WordDoc.Tables:
-    #     table.Select()
-    #     WordApp.Selection.SplitTable()
-    #     table.Rows.WrapAroundText = False
-    # WordDoc.SaveAs(PathOnly + 'Bil_' + FileOnly)
-    # WordApp.Quit()
-    # remove(PathOnly + '___Temp___.docx')
 
 
 def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
