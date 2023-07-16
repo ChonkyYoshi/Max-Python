@@ -124,28 +124,14 @@ def Bilingual(PathInput):
         MainWindow['PBarFile'].update(FileOnly)
         MainWindow['PBarFileStep'].update('Upsaving to Office 2007\
                                                  format...')
-        MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
+        MainWindow['PBar'].update((index + 0.33)/len(PathList)*100)
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
-    for CurrentStep, curindex, max in (fn.BilTables(PathOnly.
-                                                    replace('\\', '/'),
-                                                    FileOnly)):
-        MainWindow['PBar'].update((index +
-                                   ((2+(curindex/max))/5)/len(PathList)*100))
-        MainWindow['PBarFileStep'].update(CurrentStep)
+    for step, prog in (fn.BilTable(PathOnly.replace('/', '\\'), FileOnly)):
+        MainWindow['PBar'].update((index + (0.66 + (prog / 100))) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(str(step))
         MainWindow.refresh()
-    MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Processing regular text...')
-    for CurrentStep, curindex, max in fn.BilText(PathOnly.replace('\\', '/'),
-                                                 FileOnly):
-        MainWindow['PBar'].update((index +
-                                   ((3+(curindex/max))/5)/len(PathList)*100))
-        MainWindow['PBarFileStep'].update(CurrentStep)
-        MainWindow.refresh()
-    MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Removing Temp file...')
-    MainWindow['PBar'].update((index + 4/5)/len(PathList)*100)
-    MainWindow.refresh()
 
 
 def Doc2PDF(PathInput):
