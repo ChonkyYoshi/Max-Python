@@ -1,9 +1,21 @@
+import docx
+import openpyxl as xl
+from openpyxl.utils.cell import get_column_letter
+import pptx
+import regex as re
+import os
+import win32com.client as com
+import zipfile as zip
+from PIL import Image
+import shutil
+import helper as hp
+
+
 def split(FullPath):
-    from regex import match, findall
     PathOnly = ''
-    for find in findall(r'[^\/]+?\/', FullPath):
+    for find in re.findall(r'[^\/]+?\/', FullPath):
         PathOnly += find
-    FileOnly = match(r'(?r)[^\/]+', FullPath).group()
+    FileOnly = re.match(r'(?r)[^\/]+', FullPath).group()
     return (FullPath.replace('\\', '/'), PathOnly.replace('\\', '/'), FileOnly)
 
 
@@ -22,9 +34,8 @@ def Upsave(FullPath, PathOnly, FileOnly):
 
 
 def Doc2Docx(FullPath, PathOnly, FileOnly):
-    from win32com.client import DispatchEx
 
-    WordApp = DispatchEx('Word.Application')
+    WordApp = com.DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
     Doc.SaveAs(PathOnly + FileOnly[:-3] + 'docx', FileFormat=12)
     WordApp.Quit()
@@ -33,9 +44,8 @@ def Doc2Docx(FullPath, PathOnly, FileOnly):
 
 
 def Xls2Xlsx(FullPath, PathOnly, FileOnly):
-    from win32com.client import DispatchEx
 
-    XlApp = DispatchEx('Excel.Application')
+    XlApp = com.DispatchEx('Excel.Application')
     Xl = XlApp.Workbooks.Open(FullPath.replace('/', '\\'))
     Xl.SaveAs(PathOnly + FileOnly[:-4], FileFormat=51)
     XlApp.Quit()
@@ -44,9 +54,8 @@ def Xls2Xlsx(FullPath, PathOnly, FileOnly):
 
 
 def Ppt2Pptx(FullPath, PathOnly, FileOnly):
-    from win32com.client import DispatchEx
 
-    PptApp = DispatchEx('PowerPoint.Application')
+    PptApp = com.DispatchEx('PowerPoint.Application')
     Ppt = PptApp.Presentations.Open(FullPath.replace('/', '\\'), 0, 0, 0)
     Ppt.SaveAs(PathOnly + FileOnly[:-4], FileFormat=24)
     PptApp.Quit()
@@ -55,46 +64,38 @@ def Ppt2Pptx(FullPath, PathOnly, FileOnly):
 
 
 def ExtractImages(FullPath, PathOnly, FileOnly):
-    import zipfile as zip
-    from regex import match
-    from os import makedirs
 
     file = zip.ZipFile(FullPath)
-    makedirs(name=PathOnly + 'Temp', exist_ok=True)
+    os.makedirs(name=PathOnly + 'Temp', exist_ok=True)
     for media in file.namelist():
-        if match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
+        if re.match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
             file.extract(media, PathOnly + 'Temp')
     if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
         for rel in file.namelist():
-            if match(r'(ppt|story)/slides/_rels', rel):
+            if re.match(r'(ppt|story)/slides/_rels', rel):
                 file.extract(rel, PathOnly + 'Temp')
 
 
 def CleanTempDir(Tempdir):
-    from os import walk, remove
-    from PIL import Image
 
-    for TempRoot, TempPath, TempFile in walk(Tempdir):
+    for TempRoot, TempPath, TempFile in os.walk(Tempdir):
         for file in TempFile:
             if file.endswith('jpeg'):
                 im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
                 im.save(TempRoot.replace('\\', '/') + '/' + file[:-4] + 'png')
-                remove(TempRoot.replace('\\', '/') + '/' + file)
+                os.remove(TempRoot.replace('\\', '/') + '/' + file)
             elif file.endswith('jpg'):
                 im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
                 im.save(TempRoot.replace('\\', '/') + '/' + file[:-3] + 'png')
-                remove(TempRoot.replace('\\', '/') + '/' + file)
+                os.remove(TempRoot.replace('\\', '/') + '/' + file)
 
 
 def FillCS(Tempdir, PathOnly, FileOnly):
-    import docx
-    from os import walk, makedirs
-    from shutil import rmtree
 
-    makedirs(PathOnly + '\\Contact Sheets', exist_ok=True)
+    os.makedirs(PathOnly + '\\Contact Sheets', exist_ok=True)
     CS = docx.Document()
 
-    for PicRoot, PicPath, PicFile in walk(Tempdir):
+    for PicRoot, PicPath, PicFile in os.walk(Tempdir):
         for pic in PicFile:
             if pic.endswith('png'):
                 Table = CS.add_table(rows=5, cols=2, style='Table Grid')
@@ -116,26 +117,22 @@ def FillCS(Tempdir, PathOnly, FileOnly):
                 else:
                     CS.add_section()
     CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
-    rmtree(Tempdir)
+    shutil.rmtree(Tempdir)
 
 
 def LocateImage(TempDir, ImageName):
-    from os import walk
-    from regex import search
 
     Locations = []
-    for Relroot, Relpaths, Relfiles in walk(TempDir):
+    for Relroot, Relpaths, Relfiles in os.walk(TempDir):
         for rel in Relfiles:
             if rel.endswith('rels'):
                 relstr = str(open(Relroot + '\\' + rel).read())
-                if search(ImageName[:-4], relstr):
+                if re.search(ImageName[:-4], relstr):
                     Locations.append(rel[:5] + ' ' + rel[5:rel.find('.')])
     return (Locations)
 
 
 def BilTable(PathOnly, FileOnly):
-    import docx
-    import helper as hp
 
     li = list()
     doc = docx.Document(PathOnly + FileOnly)
@@ -171,18 +168,16 @@ def BilTable(PathOnly, FileOnly):
             TRun.text = run.text
             hp.CopyRunFormatting(SRun, run)
             hp.CopyRunFormatting(TRun, run)
-        par._element.getparent().remove(par._element)
+        par._element.getparent().os.remove(par._element)
     doc.save(PathOnly + 'Bil_' + FileOnly)
 
 
 def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
-    from win32com.client import DispatchEx
-    from os import makedirs
 
-    WordApp = DispatchEx('Word.Application')
+    WordApp = com.DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
 
-    makedirs(PathOnly + 'PDFs', exist_ok=True)
+    os.makedirs(PathOnly + 'PDFs', exist_ok=True)
     if Doc.Revisions.Count > 0 and ARev:
         Doc.AcceptAllRevisions()
     if Doc.Revisions.Count > 0 and DRev:
@@ -198,9 +193,8 @@ def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
 
 def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
                     Overwrite):
-    from win32com.client import DispatchEx
 
-    WordApp = DispatchEx('Word.Application')
+    WordApp = com.DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
 
     if Doc.Revisions.Count > 0 and ARev:
@@ -225,118 +219,97 @@ def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
     WordApp.Quit()
 
 
-def PrepStoryExport(FullPath, PathOnly, FileOnly):
-    from win32com.client import DispatchEx
-    from regex import match
+def PrepStoryExport(FullPath, PathOnly, FileOnly, Regex):
 
-    WordApp = DispatchEx('Word.Application')
-    WordDoc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-    WordDoc.Content.Font.Hidden = True
-    for table in WordDoc.Tables:
-        try:
-            if match('Translation', table.Cell(1, 4).Range.Text):
-                table.Columns(4).Select()
-                WordDoc.Application.Selection.Find.Font.Hidden = False
-                WordDoc.Application.Selection.Find.Text = "Story"
-                WordDoc.Application.Selection.Find.Replacement.Text = "test"
-                WordDoc.Application.Selection.Find.Execute(Replace=2,
-                                                           Forward=1, Wrap=1)
-        except Exception:
-            continue
-    WordDoc.SaveAs2(PathOnly + 'Prep_' + FileOnly, FileFormat=12)
-    WordApp.Quit()
+    Doc = docx.Document(FullPath)
+    Regex = '(?i)' + Regex
+    for index, par in enumerate(Doc.paragraphs):
+        yield f'paragraph {index + 1} of {len(Doc.paragraphs)}',\
+            index/len(Doc.paragraphs)
+        for run in par.runs:
+            run.font.hidden = True
+    for table in Doc.tables:
+        for index, col in enumerate(table.columns):
+            yield f'column {index + 1} of {len(table.columns)}',\
+                index/len(table.columns)
+            if not index == 3:
+                for cell in col.cells:
+                    for par in cell.paragraphs:
+                        for run in par.runs:
+                            run.font.hidden = True
+            else:
+                for cell in col.cells:
+                    for par in cell.paragraphs:
+                        for run in par.runs:
+                            if re.match(Regex, run.text):
+                                start = re.match(Regex, run.text).start()
+                                end = re.match(Regex, run.text).end()
+                                hidden_run = hp.isolate_run(par, start, end)
+                                hidden_run.font.hidden = True
+                for par in table.cell(0, 3).paragraphs:
+                    for run in par.runs:
+                        run.font.hidden = True
+    Doc.save(PathOnly + 'Prep_' + FileOnly)
 
 
-def Unhide(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Row, Col, Sheet,
+def Unhide(FullPath, PathOnly, FileOnly, Row, Col, Sheet,
            Shp, Sld, Overwrite):
-    from win32com.client import DispatchEx
-    from os.path import abspath
 
     match FileOnly[-4:]:
-        case 'docx' | '.doc' | 'docm':
-            BasPath = abspath(r'UnhideWord.bas')
-            WordApp = DispatchEx('Word.Application')
-            Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-            Doc.VBProject.VBComponents.Import(BasPath)
-            if Doc.Revisions.Count > 0 and ARev:
-                Doc.AcceptAllRevisions()
-            if Doc.Revisions.Count > 0 and DRev:
-                Doc.RejectAllRevisions()
-            if Com and Doc.Comments.Count > 0:
-                Doc.DeleteAllComments()
-            Doc.Application.Run('Unhide')
+        case 'docx' | 'docm':
+            Doc = docx.Document(FullPath)
+            for index, par in enumerate(Doc.paragraphs):
+                yield f'Paragraph {index + 1} of {len(Doc.Paragraphs)}',\
+                    index/len(Doc.Paragraphs)
+                for run in par.runs:
+                    run.font.hidden = False
+            for index, table in enumerate(Doc.tables):
+                yield f'Table {index + 1} of {len(Doc.tables)}',\
+                    index/len(Doc.tables)
+                for row in table.rows:
+                    for cell in row.cells:
+                        for par in cell.paragraphs:
+                            for run in par.runs:
+                                run.font.hidden = False
+            for section in Doc.sections:
+                for par in section.header.paragraphs:
+                    for run in par.runs:
+                        run.font.hidden = False
+                for par in section.footer.paragraphs:
+                    for run in par.runs:
+                        run.font.hidden = False
             if Overwrite:
-                Doc.Save()
+                Doc.save(FullPath)
             else:
-                match FileOnly[-1]:
-                    case 'x':
-                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                   FileOnly[:-5], FileFormat=12)
-                    case 'm':
-                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                   FileOnly[:-5], FileFormat=13)
-                    case 'c':
-                        Doc.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                   FileOnly[:-4], FileFormat=0)
-            Doc.VBProject.VBComponents.Remove(
-                Doc.VBProject.VBComponents.Item("PrepToolKit1"))
-            WordApp.Quit()
-        case 'xlsx' | '.xls' | 'xlsm':
-            BasPath = abspath(r'UnhideExcel.bas')
-            XlApp = DispatchEx('Excel.Application')
-            Xl = XlApp.Workbooks.Open(FullPath.replace('/', '\\'))
-            Xl.VBProject.VBComponents.Import(BasPath)
-            if Sheet:
-                Xl.Application.Run('UnhideSheet')
-            if Row:
-                Xl.Application.Run('UnhideRow')
-            if Col:
-                Xl.Application.Run('UnhideCol')
+                Doc.save(PathOnly + 'UNH_' + FileOnly)
+        case 'xlsx' | 'xlsm':
+            wb = xl.load_workbook(filename=FullPath)
+            for index, ws in enumerate(wb.worksheets):
+                yield f'Sheet {ws.title}', index/len(wb.worksheets)
+                if not Sheet:
+                    ws.sheet_state = 'visible'
+                if not Row:
+                    for row in range(1, ws.max_row + 1):
+                        ws.row_dimensions[row].hidden = False
+                if not Col:
+                    for col in range(1, ws.max_column + 1):
+                        col = get_column_letter(col)
+                        ws.column_dimensions[col].hidden = False
+            if not Overwrite:
+                wb.save()
+            else:
+                wb.save(PathOnly + 'UNH_' + FileOnly)
+        case 'pptx' | 'pptm':
+            Pres = pptx.Presentation(FullPath)
+            for index, slide in enumerate(Pres.slides):
+                yield f'Slide {index} of {len(Pres.Slides)}',\
+                    index/len(Pres.slides)
+                if not Sld:
+                    slide._element.set('show', '1')
+                if not Shp:
+                    for shape in slide.shapes:
+                        shape._element.nvSpPr.cNvPr.set('hidden', '0')
             if Overwrite:
-                Xl.Save()
+                Pres.save(FullPath)
             else:
-                match FileOnly[-1]:
-                    case 'x':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-5],
-                                  FileFormat=51)
-                    case 'm':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-5],
-                                  FileFormat=52)
-                    case 's':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-4],
-                                  FileFormat=43)
-            Xl.VBProject.VBComponents.Remove(
-                Xl.VBProject.VBComponents.Item("PrepToolKit1"))
-            XlApp.Quit()
-        case 'pptx' | '.ppt' | 'pptm':
-            BasPath = abspath(r'UnhidePPT.bas')
-            PptApp = DispatchEx('PowerPoint.Application')
-            Ppt = PptApp.Presentations.Open(FullPath.replace('/', '\\'),
-                                            0, 0, 0)
-            Ppt.VBProject.VBComponents.Import(BasPath)
-            if Sld:
-                Ppt.Application.Run('UnhideSlide')
-            if Shp:
-                Ppt.Application.Run('UnhideShape')
-            if Overwrite:
-                Ppt.Save()
-            else:
-                match FileOnly[-1]:
-                    case 'x':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-5],
-                                  FileFormat=24)
-                    case 'm':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-5],
-                                  FileFormat=25)
-                    case 't':
-                        Xl.SaveAs(PathOnly.replace('/', '\\') + 'UNH_' +
-                                  FileOnly[:-4],
-                                  FileFormat=1)
-            Xl.VBProject.VBComponents.Remove(
-                Xl.VBProject.VBComponents.Item("PrepToolKit1"))
-            XlApp.Quit()
+                Pres.save(PathOnly + 'UNH_' + FileOnly)

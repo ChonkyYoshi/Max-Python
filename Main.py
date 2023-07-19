@@ -16,6 +16,8 @@ def ClearOptions():
         if element.metadata == 'option':
             element.update(text='')
             element.update(visible=False)
+    MainWindow['UserRegex'].update('')
+    MainWindow['UserRegex'].update(visible=False)
 
 
 def SetOptions(Function):
@@ -57,29 +59,24 @@ def SetOptions(Function):
                                              ['Accept_Revisions'])
         case 'Prep_Story':
             ClearOptions()
+            MainWindow['UserRegex'].update(visible=True)
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(config['Descriptions']
                                              ['Prep_Story'])
         case 'Unhide':
             ClearOptions()
-            MainWindow['R1O1'].update(text='Word: Accept Revisions')
+            MainWindow['R1O1'].update(text='Excel: Skip hidden rows')
             MainWindow['R1O1'].update(visible=True)
-            MainWindow['R2O1'].update(text='Word: Reject Revisions')
+            MainWindow['R2O1'].update(text='Excel: Skip hidden columns')
             MainWindow['R2O1'].update(visible=True)
-            MainWindow['R3O1'].update(text='Word: Delete Comments')
+            MainWindow['R3O1'].update(text='Excel: Skip hidden sheets')
             MainWindow['R3O1'].update(visible=True)
-            MainWindow['R1O2'].update(text='Excel: Unhide all rows')
+            MainWindow['R1O2'].update(text='Powerpoint: Skip hidden shapes')
             MainWindow['R1O2'].update(visible=True)
-            MainWindow['R2O2'].update(text='Excel: Unhide all columns')
+            MainWindow['R2O2'].update(text='Powerpoint: Skip hidden slides')
             MainWindow['R2O2'].update(visible=True)
-            MainWindow['R3O2'].update(text='Excel: Unhide all sheets')
+            MainWindow['R3O2'].update(text='Global: Overwrite')
             MainWindow['R3O2'].update(visible=True)
-            MainWindow['R1O3'].update(text='Powerpoint: Unhide all shapes')
-            MainWindow['R1O3'].update(visible=True)
-            MainWindow['R2O3'].update(text='Powerpoint: Unhide all slides')
-            MainWindow['R2O3'].update(visible=True)
-            MainWindow['R3O3'].update(text='Global: Overwrite')
-            MainWindow['R3O3'].update(visible=True)
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(config['Descriptions']
                                              ['Unhide'])
@@ -175,28 +172,34 @@ def AcceptRevisions(PathInput):
 def PrepStoryExport(PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Prepping exports...')
-    MainWindow['PBar'].update(index/len(PathList)*100)
-    fn.PrepStoryExport(FullPath, PathOnly, FileOnly)
+    for step, prog in fn.PrepStoryExport(FullPath, PathOnly, FileOnly,
+                                         Regex):
+        MainWindow['PBar'].update((index + (prog / 100)) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(str(step))
+        MainWindow.refresh()
 
 
 def Unhide(PathInput):
-    if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
-        gui.popup_error('Both Accept and Reject revisions are ticked!\n\
-        Please choose only one and try again', title='impossible options',
-                        modal=True)
-        global Break
-        Break = True
-    else:
-        FullPath, PathOnly, FileOnly = fn.split(PathInput)
+    FullPath, PathOnly, FileOnly = fn.split(PathInput)
+    if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
         MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Unhiding...')
-        fn.Unhide(FullPath, PathOnly, FileOnly,
-                  ARev=MainWindow['R1O1'].get(), DRev=MainWindow['R2O1'].get(),
-                  Com=MainWindow['R3O1'].get(), Row=MainWindow['R1O2'].get(),
-                  Col=MainWindow['R2O2'].get(), Sheet=MainWindow['R3O2'].get(),
-                  Shp=MainWindow['R3O1'].get(), Sld=MainWindow['R3O2'].get(),
-                  Overwrite=MainWindow['R3O3'].get())
+        MainWindow['PBarFileStep'].update('Upsaving to Office 2007\
+                                                 format...')
+        MainWindow['PBar'].update((index + 0.33)/len(PathList)*100)
+        FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
+    MainWindow['PBarFile'].update(FileOnly)
+    for step, prog in fn.Unhide(FullPath, PathOnly, FileOnly,
+                                Row=MainWindow['R2O1'].get(),
+                                Col=MainWindow['R3O1'].get(),
+                                Sheet=MainWindow['R1O2'].get(),
+                                Shp=MainWindow['R2O2'].get(),
+                                Sld=MainWindow['R3O2'].get(),
+                                Overwrite=MainWindow['R1O3'].get()):
+        MainWindow['PBar'].update((index + (0.66 + (prog / 100))) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(str(step))
+        MainWindow.refresh()
 
 
 TopText = [
@@ -241,7 +244,8 @@ Options = [
      gui.Checkbox(text='', auto_size_text=True,
      key='R3O3', visible=False, size=(22, 1), pad=(0, 0), metadata='option'),
      gui.Checkbox(text='', auto_size_text=True,
-     key='R3O4', visible=False, size=(22, 1), pad=(0, 0), metadata='option')]
+     key='R3O4', visible=False, size=(22, 1), pad=(0, 0), metadata='option')],
+    [gui.Input(default_text='', key='UserRegex', visible=False)]
 ]
 
 Rightlayout = [
@@ -274,7 +278,7 @@ while True:
         case 'Run':
             PathList = values['PathInput'].split(';')
             MainWindow['PBar'].update(visible=True)
-
+            Regex = values['UserRegex']
             for index, PathInput in enumerate(PathList):
                 if not isfile(PathInput):
                     gui.popup_error(f'the following file:\n{PathInput}\n\
