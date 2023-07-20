@@ -68,7 +68,8 @@ def ExtractImages(FullPath, PathOnly, FileOnly):
     file = zip.ZipFile(FullPath)
     os.makedirs(name=PathOnly + 'Temp', exist_ok=True)
     for media in file.namelist():
-        if re.match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png)', media):
+        if re.match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png|emf|wmf)',
+                    media):
             file.extract(media, PathOnly + 'Temp')
     if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
         for rel in file.namelist():
@@ -80,14 +81,9 @@ def CleanTempDir(Tempdir):
 
     for TempRoot, TempPath, TempFile in os.walk(Tempdir):
         for file in TempFile:
-            if file.endswith('jpeg'):
-                im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
-                im.save(TempRoot.replace('\\', '/') + '/' + file[:-4] + 'png')
-                os.remove(TempRoot.replace('\\', '/') + '/' + file)
-            elif file.endswith('jpg'):
-                im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
-                im.save(TempRoot.replace('\\', '/') + '/' + file[:-3] + 'png')
-                os.remove(TempRoot.replace('\\', '/') + '/' + file)
+            im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
+            im.save(TempRoot.replace('\\', '/') + '/' + file + '.png')
+            os.remove(TempRoot.replace('\\', '/') + '/' + file)
 
 
 def FillCS(Tempdir, PathOnly, FileOnly):
@@ -104,15 +100,30 @@ def FillCS(Tempdir, PathOnly, FileOnly):
                 Table.cell(2, 0).merge(Table.cell(2, 1))
                 Table.cell(3, 0).text = 'Source'
                 Table.cell(3, 1).text = 'Target'
-                Table.cell(1, 0).paragraphs[0].add_run().add_picture(
-                    PicRoot.replace('\\', '/') + '/' + pic,
-                    width=(CS.sections[0].page_width - (CS.sections[0]
-                           .right_margin + CS.sections[0].left_margin)))
+                PicPic = PicRoot.replace('\\', '/') + '/' + pic
+                try:
+                    run = Table.cell(1, 0).paragraphs[0].add_run()
+                    run.add_picture(PicPic, width=(
+                        CS.sections[0].page_width - (
+                            CS.sections[0].right_margin +
+                            CS.sections[0].left_margin)))
+                except Exception:
+                    run = Table.cell(1, 0).paragraphs[0].add_run()
+                    run.text = f'''An error occured while trying to insert
+the image, please check the Error folder and manually insert the image.
+Name of the image: {pic}'''
+                    os.makedirs(PathOnly + 'Error_' + FileOnly[:-5],
+                                exist_ok=True)
+                    shutil.move(PicPic, PathOnly + 'Error_' + FileOnly[:-5]
+                                + '/' + pic)
                 if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
                     Locations = LocateImage(Tempdir, pic)
-                    for location in Locations:
-                        Table.cell(2, 0).add_paragraph(
-                            location, style='List Bullet')
+                    if len(Locations) == 0:
+                        Table.cell(2, 0).add_paragraph('Only in Master Slide')
+                    else:
+                        for location in Locations:
+                            Table.cell(2, 0).add_paragraph(
+                                location, style='List Bullet')
                     CS.add_section()
                 else:
                     CS.add_section()
@@ -172,9 +183,8 @@ def BilTable(PathOnly, FileOnly):
     doc.save(PathOnly + 'Bil_' + FileOnly)
 
 
-def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
+def Doc2PDF(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
 
-    WordApp = com.DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
 
     os.makedirs(PathOnly + 'PDFs', exist_ok=True)
@@ -188,13 +198,12 @@ def Doc2PDF(FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
         Doc.Save()
     Doc.SaveAs2(PathOnly.replace('/', '\\') + 'PDFs\\' + FileOnly + r'.pdf',
                 FileFormat=17)
-    WordApp.Quit()
+    Doc.Close()
 
 
-def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
+def AcceptRevisions(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com,
                     Overwrite):
 
-    WordApp = com.DispatchEx('Word.Application')
     Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
 
     if Doc.Revisions.Count > 0 and ARev:
@@ -216,7 +225,7 @@ def AcceptRevisions(FullPath, PathOnly, FileOnly, ARev, DRev, Com,
             case 'c':
                 Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
                             FileOnly[:-4], FileFormat=0)
-    WordApp.Quit()
+    Doc.Close()
 
 
 def PrepStoryExport(FullPath, PathOnly, FileOnly, Regex):
@@ -302,14 +311,32 @@ def Unhide(FullPath, PathOnly, FileOnly, Row, Col, Sheet,
         case 'pptx' | 'pptm':
             Pres = pptx.Presentation(FullPath)
             for index, slide in enumerate(Pres.slides):
-                yield f'Slide {index} of {len(Pres.Slides)}',\
+                yield f'Slide {index} of {len(Pres.slides)}',\
                     index/len(Pres.slides)
                 if not Sld:
                     slide._element.set('show', '1')
                 if not Shp:
                     for shape in slide.shapes:
-                        shape._element.nvSpPr.cNvPr.set('hidden', '0')
+                        hide(shape)
             if Overwrite:
                 Pres.save(FullPath)
             else:
                 Pres.save(PathOnly + 'UNH_' + FileOnly)
+
+
+def hide(shape):
+    match shape.shape_type:
+        case 6:
+            for sub in shape.shapes:
+                hide(sub)
+        case 13:
+            shape._element.nvPicPr.cNvPr.set('hidden', '0')
+        case 9:
+            shape._element.nvCxnSpPr.cNvPr.set('hidden', '0')
+        case 3 | 19 | 7:
+            shape._element.nvGraphicFramePr.cNvPr.set('hidden', '0')
+        case _:
+            try:
+                shape._element.nvSpPr.cNvPr.set('hidden', '0')
+            except Exception:
+                1 == 1

@@ -2,6 +2,7 @@ import PySimpleGUI as gui
 import Functions as fn
 from configparser import ConfigParser
 from os.path import isfile
+import win32com.client as com
 
 Break = False
 config = ConfigParser()
@@ -97,21 +98,18 @@ def Contact_Sheet(PathInput):
     if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
         MainWindow['PBarFile'].update(FileOnly)
         MainWindow['PBarFileStep'].update('Upsaving to Office 2007 ' +
-                                          'format...')
+                                          'format')
         MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Extracting Images...')
+    MainWindow['PBarFileStep'].update('Extracting Images')
     MainWindow['PBar'].update((index+2/5)/len(PathList)*100)
-    MainWindow.refresh()
     fn.ExtractImages(FullPath, PathOnly, FileOnly)
-    MainWindow['PBarFileStep'].update('cleaning up jpeg and jpg...')
+    MainWindow['PBarFileStep'].update('Converting images to png')
     MainWindow['PBar'].update((index+3/5)/len(PathList)*100)
-    MainWindow.refresh()
     fn.CleanTempDir(PathOnly.replace('\\', '/') + 'Temp')
     MainWindow['PBarFileStep'].update('Filling in Contact Sheet...')
     MainWindow['PBar'].update((index+4/5)/len(PathList)*100)
-    MainWindow.refresh()
     fn.FillCS(PathOnly + 'Temp', PathOnly, FileOnly)
 
 
@@ -131,7 +129,7 @@ def Bilingual(PathInput):
         MainWindow.refresh()
 
 
-def Doc2PDF(PathInput):
+def Doc2PDF(WordApp, PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
         gui.popup_error('Both Accept and Reject revisions are ticked!\n\
@@ -143,14 +141,16 @@ def Doc2PDF(PathInput):
         MainWindow['PBarFile'].update(FileOnly)
         MainWindow['PBarFileStep'].update('Saving as PDF...')
         MainWindow['PBar'].update(index/len(PathList)*100)
-        FullPath = fn.Doc2PDF(FullPath, PathOnly, FileOnly,
+        FullPath = fn.Doc2PDF(WordApp, FullPath, PathOnly, FileOnly,
                               ARev=MainWindow['R1O1'].get(),
                               DRev=MainWindow['R2O1'].get(),
                               Com=MainWindow['R3O1'].get(),
                               Overwrite=MainWindow['R2O1'].get())
+    if index + 1 == len(PathList):
+        WordApp.Quit()
 
 
-def AcceptRevisions(PathInput):
+def AcceptRevisions(WordApp, PathInput):
     FullPath, PathOnly, FileOnly = fn.split(PathInput)
     if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
         gui.popup_error('Both Accept and Reject revisions are ticked!\n\
@@ -162,11 +162,13 @@ def AcceptRevisions(PathInput):
         MainWindow['PBarFile'].update(FileOnly)
         MainWindow['PBarFileStep'].update('Accepting revisions...')
         MainWindow['PBar'].update(index/len(PathList)*100)
-        fn.AcceptRevisions(FullPath, PathOnly, FileOnly,
+        fn.AcceptRevisions(WordApp, FullPath, PathOnly, FileOnly,
                            ARev=MainWindow['R1O1'].get(),
                            DRev=MainWindow['R2O1'].get(),
                            Com=MainWindow['R3O1'].get(),
                            Overwrite=MainWindow['R2O1'].get())
+    if index + 1 == len(PathList):
+        WordApp.Quit()
 
 
 def PrepStoryExport(PathInput):
@@ -190,12 +192,12 @@ def Unhide(PathInput):
         FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
     MainWindow['PBarFile'].update(FileOnly)
     for step, prog in fn.Unhide(FullPath, PathOnly, FileOnly,
-                                Row=MainWindow['R2O1'].get(),
-                                Col=MainWindow['R3O1'].get(),
-                                Sheet=MainWindow['R1O2'].get(),
-                                Shp=MainWindow['R2O2'].get(),
-                                Sld=MainWindow['R3O2'].get(),
-                                Overwrite=MainWindow['R1O3'].get()):
+                                Row=MainWindow['R1O1'].get(),
+                                Col=MainWindow['R2O1'].get(),
+                                Sheet=MainWindow['R3O1'].get(),
+                                Shp=MainWindow['R1O2'].get(),
+                                Sld=MainWindow['R2O2'].get(),
+                                Overwrite=MainWindow['R3O2'].get()):
         MainWindow['PBar'].update((index + (0.66 + (prog / 100))) /
                                   len(PathList)*100)
         MainWindow['PBarFileStep'].update(str(step))
@@ -267,7 +269,7 @@ layout = [[TopText, gui.Column(Sidebar, vertical_scroll_only=True,
           gui.VSeparator(),
           gui.Column(Rightlayout)]]
 
-MainWindow = gui.Window('Prep ToolKit', layout, size=(850, 400))
+MainWindow = gui.Window('Prep ToolKit', layout, size=(850, 500))
 Function = ''
 
 while True:
@@ -296,9 +298,17 @@ while True:
                     case 'Bilingual_Table':
                         Bilingual(PathInput)
                     case 'Doc2PDF':
-                        Doc2PDF(PathInput)
+                        try:
+                            WordApp = com.GetActiveObject('Word.Application')
+                        except Exception:
+                            WordApp = com.DispatchEx('Word.Application')
+                        Doc2PDF(WordApp, PathInput)
                     case 'Accept Revisions':
-                        break
+                        try:
+                            WordApp = com.GetActiveObject('Word.Application')
+                        except Exception:
+                            WordApp = com.DispatchEx('Word.Application')
+                            AcceptRevisions(WordApp, PathInput)
                     case 'Prep_Story':
                         PrepStoryExport(PathInput)
                     case 'Unhide':

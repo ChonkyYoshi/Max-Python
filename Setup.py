@@ -1,12 +1,12 @@
 from cx_Freeze import setup, Executable
 
-includefiles = ['Functions.py', 'config.ini']
+includefiles = ['Functions.py', 'config.ini', 'helper.py']
 includes = []
 excludes = []
 
 setup(
     name='Prep ToolKit',
-    version='0.2',
+    version='0.3',
     description='A Translation file prepping utility',
     author='Enzo Agosta',
     author_email='eagosta@transpefect.com',
