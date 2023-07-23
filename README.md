@@ -13,3 +13,12 @@ Note that this is meant to be used only on Windows and has only ben tested on Wi
 3. Run the exe
 
 4. Choose which function to run and follow the instructions
+
+#Acknowledgments
+This utility could not be built without the incredible work of the developpers behind the below libraries:
+- Python-docx
+- Python-pptx
+- Openpyxl
+- PySimpleGui
+- PyWin32
+Everything relies on their work so huge thanks to them. Licences for all of these are included here and in the released binaries.
