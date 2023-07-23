@@ -14,7 +14,7 @@ Note that this is meant to be used only on Windows and has only ben tested on Wi
 
 4. Choose which function to run and follow the instructions
 
-#Acknowledgments
+# Acknowledgments
 This utility could not be built without the incredible work of the developpers behind the below libraries:
 - Python-docx
 - Python-pptx
