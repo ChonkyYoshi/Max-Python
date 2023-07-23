@@ -21,5 +21,7 @@ This utility could not be built without the incredible work of the developpers b
 - Openpyxl
 - PySimpleGui
 - PyWin32
+- Python regex
+- Pillow
 
 Everything relies on their work so huge thanks to them. Licences for all of these are included here and in the released binaries.
