@@ -5,18 +5,17 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch Chrome",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
       "program": "${file}",
-      "console": "integratedTerminal",
-      "justMyCode": true
-    },
-    {
-      "name": "Python: Main",
-      "type": "python",
-      "request": "launch",
-      "program": "C:\\Users\\transformers\\Documents\\Prep-ToolKit\\Main.py",
       "console": "integratedTerminal",
       "justMyCode": true
     }

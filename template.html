@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preflight Report</title>
+  </head>
+  <body>
+    <style>
+      .content {
+        padding: 0 18px;
+        background-color: white;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.2s ease-out;
+      }
+    </style>
+    <h1>Preflight Report Date</h1>
+    <div class="FileList">
+      <table>
+        <tr>
+          <th>File name</th>
+          <th>File format</th>
+        </tr>
+        <tr>
+          <td>File name</td>
+          <td>File format</td>
+        </tr>
+      </table>
+    </div>
+    <div class="FileReport">
+      <h1>File Name</h1>
+      <button class="collapse">Sheet Name</button>
+      <div class="content">
+        <table>
+          <tr>
+            <td>Visible</td>
+            <td><img src="" alt="Yes" /></td>
+          </tr>
+          <tr>
+            <td>Locked</td>
+            <td><img src="" alt="No" /></td>
+          </tr>
+          <tr>
+            <td>Hidden Rows</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Hidden Columns</td>
+          </tr>
+          <tr>
+            <td>
+              <h3>Defined Names</h3>
+              <li>
+                Name
+                <ul>
+                  Type:
+                </ul>
+                <ul>
+                  Range:
+                </ul>
+              </li>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <h3>Data Validation rules</h3>
+              <li>
+                Number 1
+                <ul>
+                  Prompt
+                </ul>
+                <ul>
+                  Prompt Title
+                </ul>
+                <ul>
+                  Error message
+                </ul>
+                <ul>
+                  Error Style
+                </ul>
+                <ul>
+                  Error Title
+                </ul>
+                <ul>
+                  Formula
+                </ul>
+                <ul>
+                  Type
+                </ul>
+                <ul>
+                  Range
+                </ul>
+              </li>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <script>
+        var coll = document.getElementsByClassName("collapse");
+        var i;
+  
+        for (i = 0; i < coll.length; i++) {
+          coll[i].addEventListener("click", function () {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.maxHeight) {
+              content.style.maxHeight = null;
+            } else {
+              content.style.maxHeight = content.scrollHeight + "px";
+            }
+          });
+        }
+      </script>
+  </body>
+</html>
