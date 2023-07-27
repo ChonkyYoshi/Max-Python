@@ -5,14 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch Chrome",
+      "name": "Main",
+      "type": "python",
       "request": "launch",
-      "type": "chrome",
-      "url": "http://localhost:8080",
-      "webRoot": "${workspaceFolder}"
+      "program": "Main.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
     },
     {
-      "name": "Python: Current File",
+      "name": "Current File",
       "type": "python",
       "request": "launch",
       "program": "${file}",
