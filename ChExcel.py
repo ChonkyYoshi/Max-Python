@@ -81,7 +81,7 @@ def GetDataValidationData(datavalidation):
 
 
 Results = dict()
-wb = xl.open('C:/Users/transformers/Downloads/FlagsAll.xlsm', keep_vba=True)
+wb = xl.open('C:/Users/transformers/Downloads/Nouveau dossier (3)/ZB_IT3PicklistTranslationsv1Consolidated_All.xlsx')
 Results['Global defined names'] = list()
 for name in wb.defined_names:
     Results['Global defined names'].append(
@@ -132,6 +132,7 @@ for index, ws in enumerate(wb.worksheets):
                          HyperlinkData=GetHyperlinkData(cell)))
             if len(str(cell.internal_value)) > 25000:
                 Results[ws.title]['Long'].append(cell.coordinate)
+
 
 with open('base.html') as File:
     Report = bs4.BeautifulSoup(File, 'html.parser')

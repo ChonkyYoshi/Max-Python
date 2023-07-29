@@ -1,15 +1,14 @@
 import docx
-import openpyxl as xl
-from openpyxl.utils.cell import get_column_letter
 import pptx
 from regex import search, match
 from pathlib import Path
 from win32com.client import DispatchEx
 from zipfile import ZipFile
 from PIL import Image
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, make_archive, move
 import helper as hp
 import imagequant
+from lxml import etree
 
 
 def Upsave(File: Path):
@@ -110,7 +109,7 @@ def FillCS(TempDir: Path, File: Path):
         Table.cell(3, 0).text = 'Source'
         Table.cell(3, 1).text = 'Target'
         try:
-            yield f'Filling in Contact Sheet, image {index + 1} of {i}'
+            yield f'Filling in Contact SkipSheet, image {index + 1} of {i}'
             run = Table.cell(1, 0).paragraphs[0].add_run()
             run.add_picture(pic.as_posix(),
                             width=(CS.sections[0].page_width -
@@ -151,7 +150,8 @@ def LocateImage(TempDir: Path, ImageName: str):
             rel = File.read()
         if search(ImageName, rel):
             match = search(r'(\w+)\.', entry.name)
-            Locations.append(entry.name[match.start():match.end()])
+            Locations.append(entry.
+                             name[match.start():match.end()])  # type: ignore
     return Locations
 
 
@@ -253,20 +253,22 @@ def PrepStoryExport(File: Path, Regex: str = ''):
         for run in par.runs:
             run.font.hidden = True
     for table in Doc.tables:
-        for index, col in enumerate(table.columns):
+        for index, SkipCol in enumerate(table.columns):
             yield f'column {index + 1} of {len(table.columns)}'
             if not index == 3:
-                for cell in col.cells:
+                for cell in SkipCol.cells:
                     for par in cell.paragraphs:
                         for run in par.runs:
                             run.font.hidden = True
             else:
-                for cell in col.cells:
+                for cell in SkipCol.cells:
                     for par in cell.paragraphs:
                         for run in par.runs:
                             if match(Regex, run.text) and Regex != '':
-                                start = match(Regex, run.text).start()
-                                end = match(Regex, run.text).end()
+                                start = match(Regex,
+                                              run.text).start()  # type: ignore
+                                end = match(Regex,
+                                            run.text).end()  # type: ignore
                                 hidden_run = hp.isolate_run(par, start, end)
                                 hidden_run.font.hidden = True
                 for par in table.cell(0, 3).paragraphs:
@@ -276,11 +278,11 @@ def PrepStoryExport(File: Path, Regex: str = ''):
 
 
 def Unhide(File: Path,
-           Row: bool = False,
-           Col: bool = False,
-           Sheet: bool = False,
-           Shp: bool = False,
-           Sld: bool = False,
+           SkipRow: bool = False,
+           SkipCol: bool = False,
+           SkipSheet: bool = False,
+           SkipShp: bool = False,
+           SkipSld: bool = False,
            Overwrite: bool = False):
 
     match File.suffix:
@@ -308,33 +310,37 @@ def Unhide(File: Path,
                 Doc.save(File.as_posix())
             else:
                 Doc.save(File.parent.as_posix() + '/UNH_' + File.name)
-        case 'xlsx' | 'xlsm':
-            wb = xl.load_workbook(filename=File)
-            for index, ws in enumerate(wb.worksheets):
-                if not Sheet:
-                    ws.sheet_state = 'visible'
-                if not Row:
-                    for row in range(1, ws.max_row + 1):
-                        yield f'Sheet {ws.title}, ' +\
-                            f'unhiding row {row} of {ws.max_row}'
-                        ws.row_dimensions[row].hidden = False  # type: ignore
-                if not Col:
-                    for col in range(1, ws.max_column + 1):
-                        yield f'Sheet {ws.title}, ' +\
-                            f'unhiding column {col} of {ws.max_column}'
-                        col = get_column_letter(col)
-                        ws.column_dimensions[col].hidden = False
-            if not Overwrite:
-                wb.save(File)
-            else:
-                wb.save(File.parent.as_posix() + '/UNH_' + File.name)
-        case 'pptx' | 'pptm':
+        case '.xlsx' | '.xlsm':
+            Temp = Path(f'{File.parent.as_posix()}/Temp')
+            Path.mkdir(Temp, exist_ok=True)
+            ZipFile(File).extractall(Temp)
+            for index, file in enumerate(list(Temp.
+                                              rglob('xl/worksheets/*.xml'))):
+                count = len(list(Temp.rglob('xl/worksheets/*.xml')))
+                yield f'sheet {index} of {count}'
+                file = Path(file)
+                xml = etree.parse(source=file, parser=etree.XMLParser())
+                for i in xml.xpath('//*[local-name()="row"]'):
+                    i.set("hidden", "0")
+                for i in xml.xpath('//*[local-name()="col"]'):
+                    i.set("hidden", "0")
+                with open(file, 'wb') as f:
+                    f.write(etree.tostring(xml))
+            for file in Temp.rglob('xl/workbook.xml'):
+                file = Path(file)
+                xml = etree.parse(source=file, parser=etree.XMLParser())
+                for i in xml.xpath('//*[local-name()="sheet"]'):
+                    i.set("state", "visible")
+            new = Path(make_archive(File.stem, 'zip', root_dir=Temp))
+            move(new, File.as_posix())
+            rmtree(Temp)
+        case '.pptx' | '.pptm':
             Pres = pptx.Presentation(File)
             for index, slide in enumerate(Pres.slides):
                 yield f'Slide {index} of {len(Pres.slides)}'
-                if not Sld:
+                if not SkipSld:
                     slide._element.set('show', '1')
-                if not Shp:
+                if not SkipShp:
                     for shape in slide.shapes:
                         hide(shape)
             if Overwrite:

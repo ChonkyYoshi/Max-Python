@@ -5,7 +5,6 @@ import win32com.client as com
 from pathlib import Path
 
 Break = False
-Upsaved = False
 config = ConfigParser()
 config.read('config.ini')
 file_ext = dict(config['file_ext'])
@@ -97,6 +96,7 @@ def Collapsible(layout, key, title='', arrows=(gui.SYMBOL_DOWN, gui.SYMBOL_UP),
 
 
 def Contact_Sheet(File: Path):
+    Upsaved = False
     if File.suffix in ['.doc', '.ppt', '.xls']:
         Upsaved = True
         MainWindow['PBarFile'].update(value=File.name)
@@ -122,6 +122,7 @@ def Contact_Sheet(File: Path):
 
 
 def Bilingual(File: Path):
+    Upsaved = False
     if File.suffix in ['.doc', '.ppt', '.xls']:
         Upsaved = True
         MainWindow['PBarFile'].update(value=File.name)
@@ -188,6 +189,7 @@ def PrepStoryExport(File: Path):
 
 
 def Unhide(File: Path):
+    Upsaved = False
     if File.suffix in ['.doc', '.ppt', '.xls']:
         Upsaved = True
         MainWindow['PBarFile'].update(value=File.name)
@@ -195,17 +197,17 @@ def Unhide(File: Path):
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
         File = fn.Upsave(File)
-    MainWindow['PBarFile'].update(text=File.name)
+    MainWindow['PBarFile'].update(value=File.name)
     for step in fn.Unhide(File,
-                          Row=MainWindow['R1O1'].get(),  # type: ignore
-                          Col=MainWindow['R2O1'].get(),  # type: ignore
-                          Sheet=MainWindow['R3O1'].get(),  # type: ignore
-                          Shp=MainWindow['R1O2'].get(),  # type: ignore
-                          Sld=MainWindow['R2O2'].get(),  # type: ignore
+                          SkipRow=MainWindow['R1O1'].get(),  # type: ignore
+                          SkipCol=MainWindow['R2O1'].get(),  # type: ignore
+                          SkipSheet=MainWindow['R3O1'].get(),  # type: ignore
+                          SkipShp=MainWindow['R1O2'].get(),  # type: ignore
+                          SkipSld=MainWindow['R2O2'].get(),  # type: ignore
                           Overwrite=MainWindow['R3O2'].get()):  # type: ignore
         MainWindow['PBar'].update(current_count=(index + 2/3) /
                                   len(PathList)*100)
-        MainWindow['PBarFileStep'].update(text=str(step))
+        MainWindow['PBarFileStep'].update(value=step)
         MainWindow.refresh()
     if Upsaved:
         File.unlink()
@@ -282,7 +284,7 @@ MainWindow = gui.Window('Prep ToolKit', layout, size=(850, 500))
 Function = ''
 
 while True:
-    event, values = MainWindow.read()
+    event, values = MainWindow.read()  # type: ignore
     match event:
         case 'Exit' | gui.WIN_CLOSED:
             break
@@ -325,7 +327,7 @@ while True:
                         Unhide(PathInput)
             MainWindow['PBar'].update(current_count=100)
             MainWindow['PBarFile'].update(value='')
-            MainWindow['PBarFileStep'].update(text='Done!')
+            MainWindow['PBarFileStep'].update(value='Done!')
         case 'Contact Sheet':
             MainWindow['Browse'].update(disabled=False)
             MainWindow['Browse'].FileTypes = file_ext['cs'],  # type: ignore
