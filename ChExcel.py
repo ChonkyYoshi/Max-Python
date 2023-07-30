@@ -1,8 +1,8 @@
 import openpyxl as xl
 from openpyxl.utils.cell import get_column_letter
 import regex as reg
-import bs4
-from datetime import date
+from pathlib import Path
+from json import dumps
 
 
 def GetDefinedNameData(defined_name):
@@ -80,66 +80,59 @@ def GetDataValidationData(datavalidation):
     return Infos
 
 
-Results = dict()
-wb = xl.open('C:/Users/transformers/Downloads/Nouveau dossier (3)/ZB_IT3PicklistTranslationsv1Consolidated_All.xlsx')
-Results['Global defined names'] = list()
-for name in wb.defined_names:
-    Results['Global defined names'].append(
-        GetDefinedNameData(wb.defined_names[name]))
-for index, ws in enumerate(wb.worksheets):
-    Results[ws.title] = dict(Visibility=ws.sheet_state,
-                             Protection=ws.protection.sheet,
-                             HiddenRows=GetHiddenRows(ws),
-                             HiddenColumns=GetHiddenColumns(ws),
-                             DefinedNames=list(), Tables=list(),
-                             Comments=list(), Hyperlinks=list(),
-                             Formulas=list(), HTML=list(),
-                             Placeholder=list(), Long=list())
-    if len(ws.defined_names) > 0:
-        Results[ws.title]['Sheet defined names'] = list()
-        for name in ws.defined_names:
-            Results[ws.title]['DefinedNames'].append(
-                GetDefinedNameData(ws.defined_names[name]))
-    if len(ws.tables) > 0:
-        Results[ws.title]['Sheet Tables'] = list()
-        for table in ws.tables:
-            Results[ws.title]['Sheet Tables'].append(
-                GetTableData(ws.tables[table]))
-    if len(ws.data_validations.dataValidation) > 0:
-        Results[ws.title]['Data Validation'] = list()
-        for data in ws.data_validations.dataValidation:
-            Results[ws.title]['Data Validation'].append(
-                GetDataValidationData(data))
-    for row in range(ws.min_row, ws.max_row + 1):
-        for col in range(ws.min_column, ws.max_column + 1):
-            cell = ws.cell(row, col)
-            if cell.comment is not None:
-                Results[ws.title]['Comments'].append(dict(
-                    Cell=cell.coordinate,
-                    CommentData=GetCommentData(cell.comment)))
-            if cell.data_type == 'f':
-                if cell.internal_value.startswith('='):
-                    Results[ws.title]['Formulas'].append(
+def ChExcel(File: Path):
+    Results = dict()
+    wb = xl.open(File)
+    Results['Global defined names'] = list()
+    for name in wb.defined_names:
+        Results['Global defined names'].append(
+            GetDefinedNameData(wb.defined_names[name]))
+    for ws in wb.worksheets:
+        yield f'Sheet {ws.title}'
+        Results[ws.title] = dict(Visibility=ws.sheet_state,
+                                 Protection=ws.protection.sheet,
+                                 HiddenRows=GetHiddenRows(ws),
+                                 HiddenColumns=GetHiddenColumns(ws),
+                                 DefinedNames=list(), Tables=list(),
+                                 Comments=list(), Hyperlinks=list(),
+                                 Formulas=list(), HTML=list(),
+                                 Placeholder=list(), Long=list())
+        if len(ws.defined_names) > 0:
+            Results[ws.title]['Sheet defined names'] = list()
+            for name in ws.defined_names:
+                Results[ws.title]['DefinedNames'].append(
+                    GetDefinedNameData(ws.defined_names[name]))
+        if len(ws.tables) > 0:
+            Results[ws.title]['Sheet Tables'] = list()
+            for table in ws.tables:
+                Results[ws.title]['Sheet Tables'].append(
+                    GetTableData(ws.tables[table]))
+        if len(ws.data_validations.dataValidation) > 0:
+            Results[ws.title]['Data Validation'] = list()
+            for data in ws.data_validations.dataValidation:
+                Results[ws.title]['Data Validation'].append(
+                    GetDataValidationData(data))
+        for row in range(ws.min_row, ws.max_row + 1):
+            for col in range(ws.min_column, ws.max_column + 1):
+                cell = ws.cell(row, col)
+                if cell.comment is not None:
+                    Results[ws.title]['Comments'].append(dict(
+                        Cell=cell.coordinate,
+                        CommentData=GetCommentData(cell.comment)))
+                if cell.data_type == 'f':
+                    if cell.internal_value.startswith('='):  # type: ignore
+                        Results[ws.title]['Formulas'].append(
+                            dict(Cell=cell.coordinate,
+                                 Formula=str(cell.internal_value)))
+                if reg.search(r'<[^>]+>', str(cell.internal_value)):
+                    Results[ws.title]['HTML'].append(cell.coordinate)
+                if reg.search(r'{.*?}', str(cell.internal_value)):
+                    Results[ws.title]['Placeholder'].append(cell.coordinate)
+                if cell.hyperlink != '' and cell.hyperlink is not None:
+                    Results[ws.title]['Hyperlinks'].append(
                         dict(Cell=cell.coordinate,
-                             Formula=str(cell.internal_value)))
-            if reg.search(r'<[^>]+>', str(cell.internal_value)):
-                Results[ws.title]['HTML'].append(cell.coordinate)
-            if reg.search(r'{.*?}', str(cell.internal_value)):
-                Results[ws.title]['Placeholder'].append(cell.coordinate)
-            if cell.hyperlink != '' and cell.hyperlink is not None:
-                Results[ws.title]['Hyperlinks'].append(
-                    dict(Cell=cell.coordinate,
-                         HyperlinkData=GetHyperlinkData(cell)))
-            if len(str(cell.internal_value)) > 25000:
-                Results[ws.title]['Long'].append(cell.coordinate)
-
-
-with open('base.html') as File:
-    Report = bs4.BeautifulSoup(File, 'html.parser')
-Report.head.title.contents = f'Excel Preflight Report {date.today}'
-h1 = Report.new_tag('H1')
-h1.contents = 'Excel Preflight Report'
-Report.body.append()
-with open('Report.html', 'x') as File:
-    File.write(bs4.BeautifulSoup.prettify(Report))
-1 == 1
+                             HyperlinkData=GetHyperlinkData(cell)))
+                if len(str(cell.internal_value)) > 25000:
+                    Results[ws.title]['Long'].append(cell.coordinate)
+    with open(f'{File.parent.as_posix()}/Report_{File.name}.txt', "x") as f:
+        f.write(dumps(Results, indent=4))

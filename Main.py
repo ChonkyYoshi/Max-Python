@@ -3,6 +3,8 @@ import Functions as fn
 from configparser import ConfigParser
 import win32com.client as com
 from pathlib import Path
+import ChExcel as Chx
+
 
 Break = False
 config = ConfigParser()
@@ -83,6 +85,11 @@ def SetOptions(Function):
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(value=config['Descriptions']
                                              ['Unhide'])
+        case 'ChExcel':
+            ClearOptions()
+            MainWindow['Run'].update(visible=True)
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['ChExcel'])
     return Function
 
 
@@ -214,6 +221,15 @@ def Unhide(File: Path):
         Upsaved = False
 
 
+def ChExcel(File: Path):
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in Chx.ChExcel(File):
+        MainWindow['PBar'].update(current_count=(index + 1/2) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow.refresh()
+
+
 TopText = [
     [gui.Text(text=str(config['Descriptions']['TopText']),
               justification='center')],
@@ -226,7 +242,8 @@ Sidebar = [
     [gui.Button(button_text='Word to PDF', size=15)],
     [gui.Button(button_text='Accept Revisions', size=15)],
     [gui.Button(button_text='Prep Story Export', size=15)],
-    [gui.Button(button_text='Unhide', size=15)]
+    [gui.Button(button_text='Unhide', size=15)],
+    [gui.Button(button_text='ChExcel', size=15)]
 ]
 
 Options = [
@@ -325,6 +342,8 @@ while True:
                         PrepStoryExport(PathInput)
                     case 'Unhide':
                         Unhide(PathInput)
+                    case 'ChExcel':
+                        ChExcel(PathInput)
             MainWindow['PBar'].update(current_count=100)
             MainWindow['PBarFile'].update(value='')
             MainWindow['PBarFileStep'].update(value='Done!')
@@ -365,4 +384,9 @@ while True:
             MainWindow['Browse'].FileTypes = file_ext['unh'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Unhide')
+        case 'ChExcel':
+            MainWindow['Browse'].update(disabled=False)
+            MainWindow['Browse'].FileTypes = file_ext['chx'],  # type: ignore
+            MainWindow['PathInput'].update(disabled=False)
+            Function = SetOptions('ChExcel')
 MainWindow.close()
