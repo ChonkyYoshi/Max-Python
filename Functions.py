@@ -9,6 +9,7 @@ from shutil import copyfile, rmtree, make_archive, move
 import helper as hp
 import imagequant
 from lxml import etree
+import openpyxl as xl
 
 
 def Upsave(File: Path):
@@ -109,7 +110,7 @@ def FillCS(TempDir: Path, File: Path):
         Table.cell(3, 0).text = 'Source'
         Table.cell(3, 1).text = 'Target'
         try:
-            yield f'Filling in Contact SkipSheet, image {index + 1} of {i}'
+            yield f'Filling in Contact Sheet, image {index + 1} of {i}'
             run = Table.cell(1, 0).paragraphs[0].add_run()
             run.add_picture(pic.as_posix(),
                             width=(CS.sections[0].page_width -
@@ -311,28 +312,54 @@ def Unhide(File: Path,
             else:
                 Doc.save(File.parent.as_posix() + '/UNH_' + File.name)
         case '.xlsx' | '.xlsm':
+            Sheets = list()
+            wb = xl.load_workbook(File, read_only=True)
+            for ws in wb.worksheets:
+                if ws.sheet_state != 'visible':
+                    Sheets.append(f'sheet{wb.get_index(ws) + 1}.xml')
+            wb.close()
             Temp = Path(f'{File.parent.as_posix()}/Temp')
             Path.mkdir(Temp, exist_ok=True)
             ZipFile(File).extractall(Temp)
-            for index, file in enumerate(list(Temp.
-                                              rglob('xl/worksheets/*.xml'))):
-                count = len(list(Temp.rglob('xl/worksheets/*.xml')))
-                yield f'sheet {index} of {count}'
-                file = Path(file)
-                xml = etree.parse(source=file, parser=etree.XMLParser())
-                for i in xml.xpath('//*[local-name()="row"]'):
-                    i.set("hidden", "0")
-                for i in xml.xpath('//*[local-name()="col"]'):
-                    i.set("hidden", "0")
-                with open(file, 'wb') as f:
-                    f.write(etree.tostring(xml))
-            for file in Temp.rglob('xl/workbook.xml'):
-                file = Path(file)
-                xml = etree.parse(source=file, parser=etree.XMLParser())
-                for i in xml.xpath('//*[local-name()="sheet"]'):
-                    i.set("state", "visible")
-            new = Path(make_archive(File.stem, 'zip', root_dir=Temp))
-            move(new, File.as_posix())
+            for Sheetindex, Sheetfile in enumerate(
+                    list(Temp.rglob('xl/worksheets/*.xml'))):
+                Sheetcount = len(list(Temp.rglob('xl/worksheets/*.xml')))
+                Sheetfile = Path(Sheetfile)
+                Sheetxml = etree.parse(source=Sheetfile,
+                                       parser=etree.XMLParser())
+                if Sheetfile.name in Sheets and SkipSheet:
+                    continue
+                else:
+                    wbfile = Path(f'{Temp.as_posix()}/xl/workbook.xml')
+                    wbxml = etree.parse(source=wbfile,
+                                        parser=etree.XMLParser())
+                    for sheet in wbxml.xpath('//*[local-name()="sheet"]'):
+                        sheet.set("state", "visible")
+                if not SkipRow:
+                    RowCount = len(list(
+                        Sheetxml.xpath('//*[local-name()="row"]')))
+                    for Rowindex, row in enumerate(
+                            Sheetxml.xpath('//*[local-name()="row"]')):
+                        yield f'sheet {Sheetindex + 1} of {Sheetcount}' +\
+                            f'\nrow {Rowindex + 1} of {RowCount}'
+                        row.set("hidden", "0")
+                if not SkipCol:
+                    ColCount = len(list(
+                        Sheetxml.xpath('//*[local-name()="col"]')))
+                    for ColIndex, col in enumerate(
+                            Sheetxml.xpath('//*[local-name()="col"]')):
+                        yield f'sheet {Sheetindex + 1} of {Sheetcount}' +\
+                            f'\ncolumn {ColIndex + 1} of {ColCount}'
+                        col.set('hidden', '0')
+                with open(Sheetfile, 'wb') as f:
+                    f.write(etree.tostring(Sheetxml))
+            if Overwrite:
+                new = Path(make_archive(File.stem, 'zip', root_dir=Temp))
+                move(new, File.as_posix())
+            else:
+                new = Path(make_archive(f'UNH_{File.stem}',
+                                        'zip', root_dir=Temp))
+                move(new, f'{File.parent.as_posix()}/{new.stem}{File.suffix}')
             rmtree(Temp)
         case '.pptx' | '.pptm':
             Pres = pptx.Presentation(File)
