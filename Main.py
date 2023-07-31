@@ -1,15 +1,17 @@
 import PySimpleGUI as gui
 import Functions as fn
 from configparser import ConfigParser
-from os.path import isfile
 import win32com.client as com
+from pathlib import Path
+import ChExcel as Chx
+
 
 Break = False
 config = ConfigParser()
 config.read('config.ini')
-file_types = dict(config['file_types'])
-for key in file_types:
-    file_types[key] = tuple(file_types[key].split(','))
+file_ext = dict(config['file_ext'])
+for key in file_ext:
+    file_ext[key] = tuple(file_ext[key].split(','))  # type: ignore
 
 
 def ClearOptions():
@@ -17,7 +19,6 @@ def ClearOptions():
         if element.metadata == 'option':
             element.update(text='')
             element.update(visible=False)
-    MainWindow['UserRegex'].update('')
     MainWindow['UserRegex'].update(visible=False)
 
 
@@ -25,13 +26,15 @@ def SetOptions(Function):
     match Function:
         case 'Contact_Sheet':
             ClearOptions()
+            MainWindow['R1O1'].update(text='Compress images')
+            MainWindow['R1O1'].update(visible=True)
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']
+            MainWindow['Description'].update(value=config['Descriptions']
                                              ['Contact_Sheet'])
         case 'Bilingual_Table':
             ClearOptions()
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']
+            MainWindow['Description'].update(value=config['Descriptions']
                                              ['Bilingual_Table'])
         case 'Doc2PDF':
             ClearOptions()
@@ -44,7 +47,8 @@ def SetOptions(Function):
             MainWindow['R2O1'].update(text='Overwrite')
             MainWindow['R2O1'].update(visible=True)
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']['Doc2PDF'])
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['Doc2PDF'])
         case 'Accept_Revisions':
             ClearOptions()
             MainWindow['R1O1'].update(text='Accept Revisions')
@@ -56,13 +60,13 @@ def SetOptions(Function):
             MainWindow['R1O2'].update(text='Overwrite')
             MainWindow['R1O2'].update(visible=True)
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']
+            MainWindow['Description'].update(value=config['Descriptions']
                                              ['Accept_Revisions'])
         case 'Prep_Story':
             ClearOptions()
             MainWindow['UserRegex'].update(visible=True)
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']
+            MainWindow['Description'].update(value=config['Descriptions']
                                              ['Prep_Story'])
         case 'Unhide':
             ClearOptions()
@@ -79,8 +83,18 @@ def SetOptions(Function):
             MainWindow['R3O2'].update(text='Global: Overwrite')
             MainWindow['R3O2'].update(visible=True)
             MainWindow['Run'].update(visible=True)
-            MainWindow['Description'].update(config['Descriptions']
+            MainWindow['Description'].update(value=config['Descriptions']
                                              ['Unhide'])
+        case 'ChExcel':
+            ClearOptions()
+            MainWindow['Run'].update(visible=True)
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['ChExcel'])
+        case 'PPTSections':
+            ClearOptions()
+            MainWindow['Run'].update(visible=True)
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['PPTSections'])
     return Function
 
 
@@ -93,44 +107,52 @@ def Collapsible(layout, key, title='', arrows=(gui.SYMBOL_DOWN, gui.SYMBOL_UP),
                        visible=not collapsed, metadata=arrows))]], pad=(0, 0))
 
 
-def Contact_Sheet(PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
-        MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Upsaving to Office 2007 ' +
+def Contact_Sheet(File: Path):
+    Upsaved = False
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
-        MainWindow['PBar'].update((index+1/5)/len(PathList)*100)
-        FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
-    MainWindow['PBarFile'].update(FileOnly)
-    MainWindow['PBarFileStep'].update('Extracting Images')
-    MainWindow['PBar'].update((index+2/5)/len(PathList)*100)
-    fn.ExtractImages(FullPath, PathOnly, FileOnly)
-    MainWindow['PBarFileStep'].update('Converting images to png')
-    MainWindow['PBar'].update((index+3/5)/len(PathList)*100)
-    fn.CleanTempDir(PathOnly.replace('\\', '/') + 'Temp')
-    MainWindow['PBarFileStep'].update('Filling in Contact Sheet...')
-    MainWindow['PBar'].update((index+4/5)/len(PathList)*100)
-    fn.FillCS(PathOnly + 'Temp', PathOnly, FileOnly)
-
-
-def Bilingual(PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
-        MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Upsaving to Office 2007\
-                                                 format...')
-        MainWindow['PBar'].update((index + 0.33)/len(PathList)*100)
-        FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
-    MainWindow['PBarFile'].update(FileOnly)
-    for step, prog in (fn.BilTable(PathOnly.replace('/', '\\'), FileOnly)):
-        MainWindow['PBar'].update((index + (0.66 + (prog / 100))) /
-                                  len(PathList)*100)
-        MainWindow['PBarFileStep'].update(str(step))
+        MainWindow['PBar'].update(current_count=(index+1/5)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    MainWindow['PBarFileStep'].update(value='Extracting Images')
+    MainWindow['PBar'].update(current_count=(index+2/5)/len(PathList)*100)
+    TempDir = fn.ExtractImages(File)
+    for step in fn.CleanTempDir(TempDir,
+                                MainWindow['R1O1'].get()):  # type: ignore
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow['PBar'].update(current_count=(index+3/5)/len(PathList)*100)
+    for step in fn.FillCS(TempDir, File):
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow['PBar'].update(current_count=(index+4/5)/len(PathList)*100)
         MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
 
 
-def Doc2PDF(WordApp, PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
+def Bilingual(File: Path):
+    Upsaved = False
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/5)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(text=File.name)
+    for step in (fn.BilTable(File)):
+        MainWindow['PBar'].update(current_count=(index+2/3)/len(PathList)*100)
+        MainWindow['PBarFileStep'].update(text=step)
+        MainWindow.refresh()
+    if Upsaved:
+        PathInput.unlink()
+        Upsaved = False
+
+
+def Doc2PDF(WordApp, File: Path):
     if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
         gui.popup_error('Both Accept and Reject revisions are ticked!\n\
         Please choose only one and try again', title='impossible options',
@@ -138,20 +160,19 @@ def Doc2PDF(WordApp, PathInput):
         global Break
         Break = True
     else:
-        MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Saving as PDF...')
-        MainWindow['PBar'].update(index/len(PathList)*100)
-        FullPath = fn.Doc2PDF(WordApp, FullPath, PathOnly, FileOnly,
-                              ARev=MainWindow['R1O1'].get(),
-                              DRev=MainWindow['R2O1'].get(),
-                              Com=MainWindow['R3O1'].get(),
-                              Overwrite=MainWindow['R2O1'].get())
+        MainWindow['PBarFile'].update(text=File.name)
+        MainWindow['PBarFileStep'].update(text='Saving as PDF...')
+        MainWindow['PBar'].update(current_count=index/len(PathList)*100)
+        fn.Doc2PDF(WordApp, File,
+                   ARev=MainWindow['R1O1'].get(),  # type: ignore
+                   DRev=MainWindow['R2O1'].get(),  # type: ignore
+                   Com=MainWindow['R3O1'].get(),  # type: ignore
+                   Overwrite=MainWindow['R2O1'].get())  # type: ignore
     if index + 1 == len(PathList):
         WordApp.Quit()
 
 
-def AcceptRevisions(WordApp, PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
+def AcceptRevisions(WordApp, File: Path):
     if MainWindow['R1O1'].get() is True and MainWindow['R2O1'].get() is True:
         gui.popup_error('Both Accept and Reject revisions are ticked!\n\
         Please choose only one and try again', title='impossible options',
@@ -159,49 +180,92 @@ def AcceptRevisions(WordApp, PathInput):
         global Break
         Break = True
     else:
-        MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Accepting revisions...')
-        MainWindow['PBar'].update(index/len(PathList)*100)
-        fn.AcceptRevisions(WordApp, FullPath, PathOnly, FileOnly,
-                           ARev=MainWindow['R1O1'].get(),
-                           DRev=MainWindow['R2O1'].get(),
-                           Com=MainWindow['R3O1'].get(),
-                           Overwrite=MainWindow['R2O1'].get())
+        MainWindow['PBarFile'].update(text=File.name)
+        MainWindow['PBarFileStep'].update(text='Accepting revisions...')
+        MainWindow['PBar'].update(text=index/len(PathList)*100)
+        fn.AcceptRevisions(WordApp, File,
+                           ARev=MainWindow['R1O1'].get(),  # type: ignore
+                           DRev=MainWindow['R2O1'].get(),  # type: ignore
+                           Com=MainWindow['R3O1'].get(),  # type: ignore
+                           Overwrite=MainWindow['R2O1'].get())  # type: ignore
     if index + 1 == len(PathList):
         WordApp.Quit()
 
 
-def PrepStoryExport(PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    MainWindow['PBarFile'].update(FileOnly)
-    for step, prog in fn.PrepStoryExport(FullPath, PathOnly, FileOnly,
-                                         Regex):
-        MainWindow['PBar'].update((index + (prog / 100)) /
-                                  len(PathList)*100)
-        MainWindow['PBarFileStep'].update(str(step))
+def PrepStoryExport(File: Path):
+    MainWindow['PBarFile'].update(text=File)
+    for step in fn.PrepStoryExport(File, Regex):
+        MainWindow['PBar'].update(current_count=index/len(PathList)*100)
+        MainWindow['PBarFileStep'].update(text=str(step))
         MainWindow.refresh()
 
 
-def Unhide(PathInput):
-    FullPath, PathOnly, FileOnly = fn.split(PathInput)
-    if FileOnly[-3:] in ['doc', 'ppt', 'xls']:
-        MainWindow['PBarFile'].update(FileOnly)
-        MainWindow['PBarFileStep'].update('Upsaving to Office 2007\
-                                                 format...')
-        MainWindow['PBar'].update((index + 0.33)/len(PathList)*100)
-        FullPath = fn.Upsave(FullPath, PathOnly, FileOnly)
-    MainWindow['PBarFile'].update(FileOnly)
-    for step, prog in fn.Unhide(FullPath, PathOnly, FileOnly,
-                                Row=MainWindow['R1O1'].get(),
-                                Col=MainWindow['R2O1'].get(),
-                                Sheet=MainWindow['R3O1'].get(),
-                                Shp=MainWindow['R1O2'].get(),
-                                Sld=MainWindow['R2O2'].get(),
-                                Overwrite=MainWindow['R3O2'].get()):
-        MainWindow['PBar'].update((index + (0.66 + (prog / 100))) /
+def Unhide(File: Path):
+    Upsaved = False
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in fn.Unhide(File,
+                          SkipRow=MainWindow['R1O1'].get(),  # type: ignore
+                          SkipCol=MainWindow['R2O1'].get(),  # type: ignore
+                          SkipSheet=MainWindow['R3O1'].get(),  # type: ignore
+                          SkipShp=MainWindow['R1O2'].get(),  # type: ignore
+                          SkipSld=MainWindow['R2O2'].get(),  # type: ignore
+                          Overwrite=MainWindow['R3O2'].get()):  # type: ignore
+        MainWindow['PBar'].update(current_count=(index + 2/3) /
                                   len(PathList)*100)
-        MainWindow['PBarFileStep'].update(str(step))
+        MainWindow['PBarFileStep'].update(value=step)
         MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
+
+
+def ChExcel(File: Path):
+    MainWindow['PBarFile'].update(value=File.name)
+    Upsaved = False
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in Chx.ChExcel(File):
+        MainWindow['PBar'].update(current_count=(index+2/3) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
+
+
+def PPTSections(File: Path):
+    Upsaved = False
+    MainWindow['PBarFile'].update(value=File.name)
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in fn.PPTSections(File):
+        MainWindow['PBar'].update(current_count=(index+2/3) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
 
 
 TopText = [
@@ -216,7 +280,9 @@ Sidebar = [
     [gui.Button(button_text='Word to PDF', size=15)],
     [gui.Button(button_text='Accept Revisions', size=15)],
     [gui.Button(button_text='Prep Story Export', size=15)],
-    [gui.Button(button_text='Unhide', size=15)]
+    [gui.Button(button_text='Unhide', size=15)],
+    [gui.Button(button_text='ChExcel', size=15)],
+    [gui.Button(button_text='PowerPoint Sections', size=15)]
 ]
 
 Options = [
@@ -247,7 +313,8 @@ Options = [
      key='R3O3', visible=False, size=(22, 1), pad=(0, 0), metadata='option'),
      gui.Checkbox(text='', auto_size_text=True,
      key='R3O4', visible=False, size=(22, 1), pad=(0, 0), metadata='option')],
-    [gui.Input(default_text='', key='UserRegex', visible=False)]
+    [gui.Input(default_text='', key='UserRegex', visible=False,
+               do_not_clear=False)]
 ]
 
 Rightlayout = [
@@ -273,7 +340,7 @@ MainWindow = gui.Window('Prep ToolKit', layout, size=(850, 500))
 Function = ''
 
 while True:
-    event, values = MainWindow.read()
+    event, values = MainWindow.read()  # type: ignore
     match event:
         case 'Exit' | gui.WIN_CLOSED:
             break
@@ -282,7 +349,8 @@ while True:
             MainWindow['PBar'].update(visible=True)
             Regex = values['UserRegex']
             for index, PathInput in enumerate(PathList):
-                if not isfile(PathInput):
+                PathInput = Path(PathInput)
+                if not PathInput.is_file:
                     gui.popup_error(f'the following file:\n{PathInput}\n\
                     is not a valid file!\n Skipping this file',
                                     title='Invalid file error',
@@ -313,12 +381,16 @@ while True:
                         PrepStoryExport(PathInput)
                     case 'Unhide':
                         Unhide(PathInput)
-            MainWindow['PBar'].update(100)
-            MainWindow['PBarFile'].update('')
-            MainWindow['PBarFileStep'].update('Done!')
+                    case 'ChExcel':
+                        ChExcel(PathInput)
+                    case 'PPTSections':
+                        PPTSections(PathInput)
+            MainWindow['PBar'].update(current_count=100)
+            MainWindow['PBarFile'].update(value='')
+            MainWindow['PBarFileStep'].update(value='Done!')
         case 'Contact Sheet':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['cs'],
+            MainWindow['Browse'].FileTypes = file_ext['cs'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Contact_Sheet')
         case 'Options-BUTTON-':
@@ -330,27 +402,37 @@ while True:
                        MainWindow['Options'].metadata[1])
         case 'Bilingual Table':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['bil'],
+            MainWindow['Browse'].FileTypes = file_ext['bil'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Bilingual_Table')
         case 'Word to PDF':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['pdf'],
+            MainWindow['Browse'].FileTypes = file_ext['pdf'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Doc2PDF')
         case 'Accept Revisions':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['rev'],
+            MainWindow['Browse'].FileTypes = file_ext['rev'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Accept_Revisions')
         case 'Prep Story Export':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['story'],
+            MainWindow['Browse'].FileTypes = file_ext['story'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Prep_Story')
         case 'Unhide':
             MainWindow['Browse'].update(disabled=False)
-            MainWindow['Browse'].FileTypes = file_types['unhide'],
+            MainWindow['Browse'].FileTypes = file_ext['unh'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('Unhide')
+        case 'ChExcel':
+            MainWindow['Browse'].update(disabled=False)
+            MainWindow['Browse'].FileTypes = file_ext['chx'],  # type: ignore
+            MainWindow['PathInput'].update(disabled=False)
+            Function = SetOptions('ChExcel')
+        case 'PowerPoint Sections':
+            MainWindow['Browse'].update(disabled=False)
+            MainWindow['Browse'].FileTypes = file_ext['sec'],  # type: ignore
+            MainWindow['PathInput'].update(disabled=False)
+            Function = SetOptions('PPTSections')
 MainWindow.close()

@@ -1,155 +1,167 @@
 import docx
-import openpyxl as xl
-from openpyxl.utils.cell import get_column_letter
 import pptx
-import regex as re
-import os
-import win32com.client as com
-import zipfile as zip
+from regex import search, match, findall
+from pathlib import Path
+from win32com.client import DispatchEx
+from zipfile import ZipFile
 from PIL import Image
-import shutil
+from shutil import copyfile, rmtree, make_archive, move
 import helper as hp
+import imagequant
+from lxml import etree
+import openpyxl as xl
 
 
-def split(FullPath):
-    PathOnly = ''
-    for find in re.findall(r'[^\/]+?\/', FullPath):
-        PathOnly += find
-    FileOnly = re.match(r'(?r)[^\/]+', FullPath).group()
-    return (FullPath.replace('\\', '/'), PathOnly.replace('\\', '/'), FileOnly)
+def Upsave(File: Path):
+    match File.suffix:
+        case '.doc':
+            File = Doc2Docx(File)
+        case '.ppt':
+            File = Ppt2Pptx(File)
+        case '.xls':
+            File = Xls2Xlsx(File)
+    return File
 
 
-def Upsave(FullPath, PathOnly, FileOnly):
-    match FullPath[-3:]:
-        case 'doc':
-            FullPath = Doc2Docx(FullPath, PathOnly, FileOnly)
-            FullPath, PathOnly, FileOnly = split(FullPath)
-        case 'ppt':
-            FullPath = Ppt2Pptx(FullPath, PathOnly, FileOnly)
-            FullPath, PathOnly, FileOnly = split(FullPath)
-        case 'xls':
-            FullPath = Xls2Xlsx(FullPath, PathOnly, FileOnly)
-            FullPath, PathOnly, FileOnly = split(FullPath)
-    return (FullPath)
+def Doc2Docx(File: Path):
 
-
-def Doc2Docx(FullPath, PathOnly, FileOnly):
-
-    WordApp = com.DispatchEx('Word.Application')
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
-    Doc.SaveAs(PathOnly + FileOnly[:-3] + 'docx', FileFormat=12)
+    FileStr = File.__str__()
+    WordApp = DispatchEx('Word.Application')
+    Doc = WordApp.Documents.Open(FileStr)
+    Doc.SaveAs(FileStr, FileFormat=12)
     WordApp.Quit()
-    FullPath = PathOnly + FileOnly[:-3] + 'docx'
-    return (FullPath)
+    File = Path(FileStr + '.docx')
+    return File
 
 
-def Xls2Xlsx(FullPath, PathOnly, FileOnly):
+def Xls2Xlsx(File: Path):
 
-    XlApp = com.DispatchEx('Excel.Application')
-    Xl = XlApp.Workbooks.Open(FullPath.replace('/', '\\'))
-    Xl.SaveAs(PathOnly + FileOnly[:-4], FileFormat=51)
+    XlApp = DispatchEx('Excel.Application')
+    FileStr = File.__str__()
+    Xl = XlApp.Workbooks.Open(FileStr)
+    Xl.SaveAs(FileStr, FileFormat=51)
     XlApp.Quit()
-    FullPath = PathOnly + FileOnly[:-3] + 'xlsx'
-    return (FullPath)
+    File = Path(FileStr + '.xlsx')
+    return File
 
 
-def Ppt2Pptx(FullPath, PathOnly, FileOnly):
+def Ppt2Pptx(File: Path):
 
-    PptApp = com.DispatchEx('PowerPoint.Application')
-    Ppt = PptApp.Presentations.Open(FullPath.replace('/', '\\'), 0, 0, 0)
-    Ppt.SaveAs(PathOnly + FileOnly[:-4], FileFormat=24)
+    PptApp = DispatchEx('PowerPoint.Application')
+    FileStr = File.__str__()
+    Ppt = PptApp.Presentations.Open(FileStr, 0, 0, 0)
+    Ppt.SaveAs(FileStr, FileFormat=24)
     PptApp.Quit()
-    FullPath = PathOnly + FileOnly[:-3] + 'pptx'
-    return (FullPath)
+    File = Path(FileStr + '.pptx')
+    return File
 
 
-def ExtractImages(FullPath, PathOnly, FileOnly):
+def ExtractImages(File: Path):
 
-    file = zip.ZipFile(FullPath)
-    os.makedirs(name=PathOnly + 'Temp', exist_ok=True)
-    for media in file.namelist():
-        if re.match(r'(ppt|word|xl|story)/media/.*?\.(jpeg|jpg|png|emf|wmf)',
-                    media):
-            file.extract(media, PathOnly + 'Temp')
-    if FileOnly.endswith('pptx') or FileOnly.endswith('.story'):
-        for rel in file.namelist():
-            if re.match(r'(ppt|story)/slides/_rels', rel):
-                file.extract(rel, PathOnly + 'Temp')
-
-
-def CleanTempDir(Tempdir):
-
-    for TempRoot, TempPath, TempFile in os.walk(Tempdir):
-        for file in TempFile:
-            im = Image.open(TempRoot.replace('\\', '/') + '/' + file)
-            im.save(TempRoot.replace('\\', '/') + '/' + file + '.png')
-            os.remove(TempRoot.replace('\\', '/') + '/' + file)
+    zipfile = ZipFile(File)
+    TempDir = Path(File.parent.as_posix() + '/Temp')
+    TempDir.mkdir(exist_ok=True)
+    for file in zipfile.namelist():
+        if match(r'.*?/media/.*?\.(jpeg|jpg|png|emf|wmf|wdp)', file):
+            zipfile.extract(file, TempDir)
+    if File.suffix == '.pptx' or File.suffix == '.story':
+        for rel in zipfile.namelist():
+            if match(r'.*?/slides/_rels', rel):
+                zipfile.extract(rel, TempDir)
+    return TempDir
 
 
-def FillCS(Tempdir, PathOnly, FileOnly):
+def CleanTempDir(Tempdir: Path, compress=True):
 
-    os.makedirs(PathOnly + '\\Contact Sheets', exist_ok=True)
+    for index, file in enumerate(list(Tempdir.glob('*/media/*'))):
+        i = len(list(Tempdir.glob('*/media/*')))
+        yield f'Converting all to png, image {index + 1} of {i}'
+        if not file.suffix == '.png':
+            with Image.open(file.as_posix()) as im:
+                try:
+                    im.save(file.as_posix(), format='PNG')
+                    file.unlink(missing_ok=True)
+                except OSError:
+                    continue
+    if compress:
+        for index, file in enumerate(list(Tempdir.glob('*/media/*'))):
+            i = len(list(Tempdir.glob('*/media/*')))
+            yield f'Compressing, image {index + 1} of {i}'
+            if file.suffix == '.png':
+                with Image.open(file.as_posix()) as im:
+                    new_im = imagequant.quantize_pil_image(im)
+                    new_im.save(file.as_posix()[:-3] + 'png')
+
+
+def FillCS(TempDir: Path, File: Path):
+
+    CSPath = Path(File.parent.as_posix() + '/Contact Sheets')
+    CSPath.mkdir(exist_ok=True)
     CS = docx.Document()
 
-    for PicRoot, PicPath, PicFile in os.walk(Tempdir):
-        for pic in PicFile:
-            if pic.endswith('png'):
-                Table = CS.add_table(rows=5, cols=2, style='Table Grid')
-                Table.cell(0, 0).merge(Table.cell(0, 1)).text = pic
-                Table.cell(1, 0).merge(Table.cell(1, 1))
-                Table.cell(2, 0).merge(Table.cell(2, 1))
-                Table.cell(3, 0).text = 'Source'
-                Table.cell(3, 1).text = 'Target'
-                PicPic = PicRoot.replace('\\', '/') + '/' + pic
-                try:
-                    run = Table.cell(1, 0).paragraphs[0].add_run()
-                    run.add_picture(PicPic, width=(
-                        CS.sections[0].page_width - (
-                            CS.sections[0].right_margin +
-                            CS.sections[0].left_margin)))
-                except Exception:
-                    run = Table.cell(1, 0).paragraphs[0].add_run()
-                    run.text = f'''An error occured while trying to insert
+    i = len(list(TempDir.glob('*/media/*')))
+    for index, pic in enumerate(list(TempDir.glob('*/media/*'))):
+        if pic.is_dir() or pic.suffix == '.rels':
+            continue
+        Table = CS.add_table(rows=5, cols=2, style='Table Grid')
+        Table.cell(0, 0).merge(Table.cell(0, 1)).text = pic.name
+        Table.cell(1, 0).merge(Table.cell(1, 1))
+        Table.cell(2, 0).merge(Table.cell(2, 1))
+        Table.cell(3, 0).text = 'Source'
+        Table.cell(3, 1).text = 'Target'
+        try:
+            yield f'Filling in Contact Sheet, image {index + 1} of {i}'
+            run = Table.cell(1, 0).paragraphs[0].add_run()
+            run.add_picture(pic.as_posix(),
+                            width=(CS.sections[0].page_width -
+                                   (CS.sections[0].right_margin +
+                                    CS.sections[0].left_margin)))
+        except Exception:
+            run = Table.cell(1, 0).paragraphs[0].add_run()
+            run.text = f'''An error occured while trying to insert
 the image, please check the Error folder and manually insert the image.
-Name of the image: {pic}'''
-                    os.makedirs(PathOnly + 'Error_' + FileOnly[:-5],
-                                exist_ok=True)
-                    shutil.move(PicPic, PathOnly + 'Error_' + FileOnly[:-5]
-                                + '/' + pic)
-                if FileOnly.endswith('pptx') or FileOnly.endswith('story'):
-                    Locations = LocateImage(Tempdir, pic)
-                    if len(Locations) == 0:
-                        Table.cell(2, 0).add_paragraph('Only in Master Slide')
-                    else:
-                        for location in Locations:
-                            Table.cell(2, 0).add_paragraph(
-                                location, style='List Bullet')
-                    CS.add_section()
-                else:
-                    CS.add_section()
-    CS.save(PathOnly + 'Contact Sheets/CS_' + FileOnly + '.docx')
-    shutil.rmtree(Tempdir)
+Name of the image: {pic.name}'''
+            ErrorDir = Path(File.parent.as_posix() +
+                            '/Errors_' + File.stem)
+            ErrorDir.mkdir(exist_ok=True)
+            copyfile(pic.as_posix(),
+                     ErrorDir.as_posix() + '/' + pic.name)
+        if File.suffix == '.pptx' or File.suffix == '.story':
+            locations = LocateImage(TempDir, str(pic.name))
+            if len(locations) == 0:
+                Table.cell(2, 0).add_paragraph(
+                    'only present in Master Slide', style='List Bullet')
+                CS.add_page_break()
+            else:
+                for location in locations:
+                    Table.cell(2, 0).add_paragraph(location,
+                                                   style='List Bullet')
+                CS.add_page_break()
+        else:
+            CS.add_page_break()
+    CS.save(f'{CSPath.as_posix()}/CS_{File.name}.docx')
+    rmtree(TempDir)
 
 
-def LocateImage(TempDir, ImageName):
+def LocateImage(TempDir: Path, ImageName: str):
 
     Locations = []
-    for Relroot, Relpaths, Relfiles in os.walk(TempDir):
-        for rel in Relfiles:
-            if rel.endswith('rels'):
-                relstr = str(open(Relroot + '\\' + rel).read())
-                if re.search(ImageName[:-4], relstr):
-                    Locations.append(rel[:5] + ' ' + rel[5:rel.find('.')])
-    return (Locations)
+    for entry in TempDir.rglob('*.rels'):
+        with open(entry, 'r') as File:
+            rel = File.read()
+        if search(ImageName, rel):
+            match = search(r'(\w+)\.', entry.name)
+            Locations.append(entry.
+                             name[match.start():match.end()])  # type: ignore
+    return Locations
 
 
-def BilTable(PathOnly, FileOnly):
+def BilTable(File: Path):
 
     li = list()
-    doc = docx.Document(PathOnly + FileOnly)
+    doc = docx.Document(File)
     for index, table in enumerate(doc.tables):
-        yield f'processing table {index + 1} of {len(doc.tables)}',\
-            index/len(doc.tables)
+        yield f'processing table {index + 1} of {len(doc.tables)}'
         for c in range(len(table.columns)):
             for r in range(len(table.rows)):
                 if table.cell(r, c)._tc not in li:
@@ -165,7 +177,7 @@ def BilTable(PathOnly, FileOnly):
         li.clear()
     i = len(doc.paragraphs)
     for index, par in enumerate(doc.paragraphs):
-        yield f'processing paragraph {index + 1} of {i}', index/i
+        yield f'processing paragraph {index + 1} of {i}'
         table = doc.add_table(rows=1, cols=2)
         par._p.addnext(table._tbl)
         SPar = table.cell(0, 0).paragraphs[0]
@@ -180,14 +192,18 @@ def BilTable(PathOnly, FileOnly):
             hp.CopyRunFormatting(SRun, run)
             hp.CopyRunFormatting(TRun, run)
         par._element.getparent().os.remove(par._element)
-    doc.save(PathOnly + 'Bil_' + FileOnly)
+    doc.save(File.parent.as_posix() + '/Bil_' + File.name)
 
 
-def Doc2PDF(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
+def Doc2PDF(WordApp, File: Path,
+            ARev: bool = False,
+            DRev: bool = False,
+            Com: bool = False,
+            Overwrite: bool = False):
 
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'), Visible=False)
-
-    os.makedirs(PathOnly + 'PDFs', exist_ok=True)
+    Doc = WordApp.Documents.Open(File.as_posix(), Visible=False)
+    PdfDir = Path(File.as_posix() + '/PDF')
+    PdfDir.mkdir(exist_ok=True)
     if Doc.Revisions.Count > 0 and ARev:
         Doc.AcceptAllRevisions()
     if Doc.Revisions.Count > 0 and DRev:
@@ -196,15 +212,17 @@ def Doc2PDF(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com, Overwrite):
         Doc.DeleteAllComments()
     if Overwrite:
         Doc.Save()
-    Doc.SaveAs2(PathOnly.replace('/', '\\') + 'PDFs\\' + FileOnly + r'.pdf',
-                FileFormat=17)
+    Doc.SaveAs2(f'{PdfDir.as_posix()}/{File.name}.pdf', FileFormat=17)
     Doc.Close()
 
 
-def AcceptRevisions(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com,
-                    Overwrite):
+def AcceptRevisions(WordApp, File: Path,
+                    ARev: bool = False,
+                    DRev: bool = False,
+                    Com: bool = False,
+                    Overwrite: bool = False):
 
-    Doc = WordApp.Documents.Open(FullPath.replace('/', '\\'))
+    Doc = WordApp.Documents.Open(File.as_posix(), Visible=False)
 
     if Doc.Revisions.Count > 0 and ARev:
         Doc.AcceptAllRevisions()
@@ -215,66 +233,68 @@ def AcceptRevisions(WordApp, FullPath, PathOnly, FileOnly, ARev, DRev, Com,
     if Overwrite:
         Doc.Save()
     else:
-        match FileOnly[-1]:
-            case 'x':
-                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
-                            FileOnly, FileFormat=12)
-            case 'm':
-                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
-                            FileOnly, FileFormat=13)
-            case 'c':
-                Doc.SaveAs2(PathOnly.replace('/', '\\') + 'NoRev_' +
-                            FileOnly[:-4], FileFormat=0)
+        match File.suffix:
+            case '.docx':
+                Doc.SaveAs2(File.parent.as_posix() + 'NoRev_' +
+                            File.stem, FileFormat=12)
+            case '.docm':
+                Doc.SaveAs2(File.parent.as_posix() + 'NoRev_' +
+                            File.stem, FileFormat=13)
+            case '.doc':
+                Doc.SaveAs2(File.parent.as_posix() + 'NoRev_' +
+                            File.stem, FileFormat=0)
     Doc.Close()
 
 
-def PrepStoryExport(FullPath, PathOnly, FileOnly, Regex):
+def PrepStoryExport(File: Path, Regex: str = ''):
 
-    Doc = docx.Document(FullPath)
-    Regex = '(?i)' + Regex
+    Doc = docx.Document(File)
     for index, par in enumerate(Doc.paragraphs):
-        yield f'paragraph {index + 1} of {len(Doc.paragraphs)}',\
-            index/len(Doc.paragraphs)
+        yield f'paragraph {index + 1} of {len(Doc.paragraphs)}'
         for run in par.runs:
             run.font.hidden = True
     for table in Doc.tables:
-        for index, col in enumerate(table.columns):
-            yield f'column {index + 1} of {len(table.columns)}',\
-                index/len(table.columns)
+        for index, SkipCol in enumerate(table.columns):
+            yield f'column {index + 1} of {len(table.columns)}'
             if not index == 3:
-                for cell in col.cells:
+                for cell in SkipCol.cells:
                     for par in cell.paragraphs:
                         for run in par.runs:
                             run.font.hidden = True
             else:
-                for cell in col.cells:
+                for cell in SkipCol.cells:
                     for par in cell.paragraphs:
                         for run in par.runs:
-                            if re.match(Regex, run.text):
-                                start = re.match(Regex, run.text).start()
-                                end = re.match(Regex, run.text).end()
+                            if match(Regex, run.text) and Regex != '':
+                                start = match(Regex,
+                                              run.text).start()  # type: ignore
+                                end = match(Regex,
+                                            run.text).end()  # type: ignore
                                 hidden_run = hp.isolate_run(par, start, end)
                                 hidden_run.font.hidden = True
                 for par in table.cell(0, 3).paragraphs:
                     for run in par.runs:
                         run.font.hidden = True
-    Doc.save(PathOnly + 'Prep_' + FileOnly)
+    Doc.save(File.parent.as_posix() + '/Prep_' + File.name)
 
 
-def Unhide(FullPath, PathOnly, FileOnly, Row, Col, Sheet,
-           Shp, Sld, Overwrite):
+def Unhide(File: Path,
+           SkipRow: bool = False,
+           SkipCol: bool = False,
+           SkipSheet: bool = False,
+           SkipShp: bool = False,
+           SkipSld: bool = False,
+           Overwrite: bool = False):
 
-    match FileOnly[-4:]:
-        case 'docx' | 'docm':
-            Doc = docx.Document(FullPath)
+    match File.suffix:
+        case '.docx' | '.docm':
+            Doc = docx.Document(File)
             for index, par in enumerate(Doc.paragraphs):
-                yield f'Paragraph {index + 1} of {len(Doc.Paragraphs)}',\
-                    index/len(Doc.Paragraphs)
+                yield f'Paragraph {index + 1} of {len(Doc.Paragraphs)}'
                 for run in par.runs:
                     run.font.hidden = False
             for index, table in enumerate(Doc.tables):
-                yield f'Table {index + 1} of {len(Doc.tables)}',\
-                    index/len(Doc.tables)
+                yield f'Table {index + 1} of {len(Doc.tables)}'
                 for row in table.rows:
                     for cell in row.cells:
                         for par in cell.paragraphs:
@@ -288,43 +308,76 @@ def Unhide(FullPath, PathOnly, FileOnly, Row, Col, Sheet,
                     for run in par.runs:
                         run.font.hidden = False
             if Overwrite:
-                Doc.save(FullPath)
+                Doc.save(File.as_posix())
             else:
-                Doc.save(PathOnly + 'UNH_' + FileOnly)
-        case 'xlsx' | 'xlsm':
-            wb = xl.load_workbook(filename=FullPath)
-            for index, ws in enumerate(wb.worksheets):
-                yield f'Sheet {ws.title}', index/len(wb.worksheets)
-                if not Sheet:
-                    ws.sheet_state = 'visible'
-                if not Row:
-                    for row in range(1, ws.max_row + 1):
-                        ws.row_dimensions[row].hidden = False
-                if not Col:
-                    for col in range(1, ws.max_column + 1):
-                        col = get_column_letter(col)
-                        ws.column_dimensions[col].hidden = False
-            if not Overwrite:
-                wb.save()
+                Doc.save(f'{File.parent.as_posix()}/UNH_{File.name}')
+        case '.xlsx' | '.xlsm':
+            Sheets = list()
+            wb = xl.load_workbook(File, read_only=True)
+            for ws in wb.worksheets:
+                if ws.sheet_state != 'visible':
+                    Sheets.append(f'sheet{wb.get_index(ws) + 1}.xml')
+            wb.close()
+            Temp = Path(f'{File.parent.as_posix()}/Temp')
+            Path.mkdir(Temp, exist_ok=True)
+            ZipFile(File).extractall(Temp)
+            for Sheetindex, Sheetfile in enumerate(
+                    list(Temp.rglob('xl/worksheets/*.xml'))):
+                Sheetcount = len(list(Temp.rglob('xl/worksheets/*.xml')))
+                Sheetfile = Path(Sheetfile)
+                Sheetxml = etree.parse(source=Sheetfile,
+                                       parser=etree.XMLParser())
+                if Sheetfile.name in Sheets and SkipSheet:
+                    continue
+                else:
+                    wbfile = Path(f'{Temp.as_posix()}/xl/workbook.xml')
+                    wbxml = etree.parse(source=wbfile,
+                                        parser=etree.XMLParser())
+                    for sheet in wbxml.xpath('//*[local-name()="sheet"]'):
+                        sheet.set("state", "visible")
+                if not SkipRow:
+                    RowCount = len(list(
+                        Sheetxml.xpath('//*[local-name()="row"]')))
+                    for Rowindex, row in enumerate(
+                            Sheetxml.xpath('//*[local-name()="row"]')):
+                        yield f'sheet {Sheetindex + 1} of {Sheetcount}' +\
+                            f'\nrow {Rowindex + 1} of {RowCount}'
+                        row.set("hidden", "0")
+                if not SkipCol:
+                    ColCount = len(list(
+                        Sheetxml.xpath('//*[local-name()="col"]')))
+                    for ColIndex, col in enumerate(
+                            Sheetxml.xpath('//*[local-name()="col"]')):
+                        yield f'sheet {Sheetindex + 1} of {Sheetcount}' +\
+                            f'\ncolumn {ColIndex + 1} of {ColCount}'
+                        col.set('hidden', '0')
+                with open(Sheetfile, 'wb') as f:
+                    f.write(etree.tostring(Sheetxml))
+            if Overwrite:
+                new = Path(make_archive(File.stem, 'zip', root_dir=Temp))
+                move(new, File.as_posix())
             else:
-                wb.save(PathOnly + 'UNH_' + FileOnly)
-        case 'pptx' | 'pptm':
-            Pres = pptx.Presentation(FullPath)
+                new = Path(make_archive(f'UNH_{File.stem}',
+                                        'zip', root_dir=Temp))
+                move(new, f'{File.parent.as_posix()}/{new.stem}{File.suffix}')
+            rmtree(Temp)
+        case '.pptx' | '.pptm':
+            Pres = pptx.Presentation(File)
             for index, slide in enumerate(Pres.slides):
-                yield f'Slide {index} of {len(Pres.slides)}',\
-                    index/len(Pres.slides)
-                if not Sld:
+                yield f'Slide {index} of {len(Pres.slides)}'
+                if not SkipSld:
                     slide._element.set('show', '1')
-                if not Shp:
+                if not SkipShp:
                     for shape in slide.shapes:
                         hide(shape)
             if Overwrite:
-                Pres.save(FullPath)
+                Pres.save(File)
             else:
-                Pres.save(PathOnly + 'UNH_' + FileOnly)
+                Pres.save(f'{File.parent.as_posix()}/UNH_{File.name}')
 
 
 def hide(shape):
+
     match shape.shape_type:
         case 6:
             for sub in shape.shapes:
@@ -339,4 +392,30 @@ def hide(shape):
             try:
                 shape._element.nvSpPr.cNvPr.set('hidden', '0')
             except Exception:
-                1 == 1
+                breakpoint()
+
+
+def PPTSections(File: Path):
+
+    PPT = pptx.Presentation(File)
+    xml = str(PPT.part.blob)
+    if search(r'(<p14:section name=")(.*?)(")', xml):
+        doc = docx.Document()
+        table = doc.add_table(rows=1, cols=2)
+        r = table.cell(0, 0).paragraphs[0].add_run()
+        r.text = 'Source'
+        r.font.hidden = True
+        r = table.cell(0, 1).paragraphs[0].add_run()
+        r.text = 'Target'
+        r.font.hidden = True
+        count = len(findall(r'(<p14:section name=")(.*?)(")', xml))
+        for index, sec in enumerate(findall(r'(<p14:section name=")(.*?)(")',
+                                            xml)):
+            yield f'section {index + 1} of {count}'
+            row = table.add_row()
+            r = row.cells[0].paragraphs[0].add_run()
+            r.text = sec[1]
+            r.font.hidden = True
+            r = row.cells[1].paragraphs[0].add_run()
+            r.text = sec[1]
+        doc.save(f'{File.parent.as_posix()}/Section Titles_{File.name}.docx')
