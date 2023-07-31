@@ -90,6 +90,11 @@ def SetOptions(Function):
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(value=config['Descriptions']
                                              ['ChExcel'])
+        case 'PPTSections':
+            ClearOptions()
+            MainWindow['Run'].update(visible=True)
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['PPTSections'])
     return Function
 
 
@@ -223,11 +228,44 @@ def Unhide(File: Path):
 
 def ChExcel(File: Path):
     MainWindow['PBarFile'].update(value=File.name)
+    Upsaved = False
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
     for step in Chx.ChExcel(File):
-        MainWindow['PBar'].update(current_count=(index + 1/2) /
+        MainWindow['PBar'].update(current_count=(index+2/3) /
                                   len(PathList)*100)
         MainWindow['PBarFileStep'].update(value=step)
         MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
+
+
+def PPTSections(File: Path):
+    Upsaved = False
+    MainWindow['PBarFile'].update(value=File.name)
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = fn.Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in fn.PPTSections(File):
+        MainWindow['PBar'].update(current_count=(index+2/3) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
 
 
 TopText = [
@@ -243,7 +281,8 @@ Sidebar = [
     [gui.Button(button_text='Accept Revisions', size=15)],
     [gui.Button(button_text='Prep Story Export', size=15)],
     [gui.Button(button_text='Unhide', size=15)],
-    [gui.Button(button_text='ChExcel', size=15)]
+    [gui.Button(button_text='ChExcel', size=15)],
+    [gui.Button(button_text='PowerPoint Sections', size=15)]
 ]
 
 Options = [
@@ -344,6 +383,8 @@ while True:
                         Unhide(PathInput)
                     case 'ChExcel':
                         ChExcel(PathInput)
+                    case 'PPTSections':
+                        PPTSections(PathInput)
             MainWindow['PBar'].update(current_count=100)
             MainWindow['PBarFile'].update(value='')
             MainWindow['PBarFileStep'].update(value='Done!')
@@ -389,4 +430,9 @@ while True:
             MainWindow['Browse'].FileTypes = file_ext['chx'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('ChExcel')
+        case 'PowerPoint Sections':
+            MainWindow['Browse'].update(disabled=False)
+            MainWindow['Browse'].FileTypes = file_ext['sec'],  # type: ignore
+            MainWindow['PathInput'].update(disabled=False)
+            Function = SetOptions('PPTSections')
 MainWindow.close()
