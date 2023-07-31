@@ -310,7 +310,7 @@ def Unhide(File: Path,
             if Overwrite:
                 Doc.save(File.as_posix())
             else:
-                Doc.save(File.parent.as_posix() + '/UNH_' + File.name)
+                Doc.save(f'{File.parent.as_posix()}/UNH_{File.name}')
         case '.xlsx' | '.xlsm':
             Sheets = list()
             wb = xl.load_workbook(File, read_only=True)
@@ -373,7 +373,7 @@ def Unhide(File: Path,
             if Overwrite:
                 Pres.save(File)
             else:
-                Pres.save(File.parent.as_posix() + 'UNH_' + File.name)
+                Pres.save(f'{File.parent.as_posix()}/UNH_{File.name}')
 
 
 def hide(shape):
