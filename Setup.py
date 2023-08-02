@@ -6,7 +6,7 @@ excludes = []
 
 setup(
     name='Prep ToolKit',
-    version='0.4',
+    version='0.5',
     description='A Translation file prepping utility',
     author='Enzo Agosta',
     author_email='agosta.enzowork@gmail.com',
