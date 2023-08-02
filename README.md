@@ -6,7 +6,7 @@ This utility is intended to be used by end-users with no technical requirements,
 Note that this is meant to be used only on Windows and has only ben tested on Windows. Furhermore, Microsoft Word, Excel and Powerpoint NEED to be installed and activated on the user's machine.
 
 # How to use
-1. Download the latest released installer [here](https://github.com/ChonkyYoshi/Prep-ToolKit/releases/download/V0.4/Prep-Toolkit.Installer.exe) and download the latest stable release.
+1. Download the latest released installer [here](https://github.com/ChonkyYoshi/Prep-ToolKit/releases/download/V0.5/Prep-Toolkit.Installer.exe) and download the latest stable release.
 
 2. Install it wherever you want
 
