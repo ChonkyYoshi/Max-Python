@@ -28,3 +28,30 @@ def PPTSections(File: Path):
             r = row.cells[1].paragraphs[0].add_run()
             r.text = sec[1]
         doc.save(f'{File.parent.as_posix()}/Section Titles_{File.name}.docx')
+
+
+def NormalizeSpacing(File: Path, Overwrite: bool):
+
+    PPT = pptx.Presentation(File)
+    max = len(PPT.slides)
+    for index, slide in enumerate(PPT.slides):
+        yield f'Slide {index} of {max}'
+        for shape in slide.shapes:
+            Normalize(shape)
+    if Overwrite:
+        PPT.save(File.as_posix())
+    else:
+        PPT.save(f'{File.parent.as_posix()}/Fixed_{File.name}')
+
+
+def Normalize(shape):
+
+    if shape.shape_type == 6:
+        for subshape in shape.shapes:
+            Normalize(subshape)
+    else:
+        if shape.has_text_frame:
+            TF = shape.text_frame
+            for par in TF.paragraphs:
+                for run in par.runs:
+                    run.font._rPr.set('spc', '0')

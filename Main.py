@@ -99,6 +99,13 @@ def SetOptions(Function):
             MainWindow['Run'].update(visible=True)
             MainWindow['Description'].update(value=config['Descriptions']
                                              ['PPTSections'])
+        case 'NormalizeSpacing':
+            ClearOptions()
+            MainWindow['R1O1'].update(text='GLobal: Overwrite')
+            MainWindow['R1O1'].update(visible=True)
+            MainWindow['Run'].update(visible=True)
+            MainWindow['Description'].update(value=config['Descriptions']
+                                             ['NormalizeSpacing'])
     return Function
 
 
@@ -272,6 +279,28 @@ def PPTSections(File: Path):
         Upsaved = False
 
 
+def NormalizeSpacing(File: Path):
+    Upsaved = False
+    MainWindow['PBarFile'].update(value=File.name)
+    if File.suffix in ['.doc', '.ppt', '.xls']:
+        Upsaved = True
+        MainWindow['PBarFile'].update(value=File.name)
+        MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
+                                          'format')
+        MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
+        File = Upsave(File)
+    MainWindow['PBarFile'].update(value=File.name)
+    for step in pp.NormalizeSpacing(File,
+                                    MainWindow['R1O1'].get()):  # type: ignore
+        MainWindow['PBar'].update(current_count=(index+2/3) /
+                                  len(PathList)*100)
+        MainWindow['PBarFileStep'].update(value=step)
+        MainWindow.refresh()
+    if Upsaved:
+        File.unlink()
+        Upsaved = False
+
+
 TopText = [
     [gui.Text(text=str(config['Descriptions']['TopText']),
               justification='center')],
@@ -286,7 +315,8 @@ Sidebar = [
     [gui.Button(button_text='Prep Story Export', size=15)],
     [gui.Button(button_text='Unhide', size=15)],
     [gui.Button(button_text='ChExcel', size=15)],
-    [gui.Button(button_text='PowerPoint Sections', size=15)]
+    [gui.Button(button_text='PowerPoint Sections', size=15)],
+    [gui.Button(button_text='Normalize Spacing', size=15)]
 ]
 
 Options = [
@@ -389,6 +419,8 @@ while True:
                         ChExcel(PathInput)
                     case 'PPTSections':
                         PPTSections(PathInput)
+                    case 'NormalizeSpacing':
+                        NormalizeSpacing(PathInput)
             MainWindow['PBar'].update(current_count=100)
             MainWindow['PBarFile'].update(value='')
             MainWindow['PBarFileStep'].update(value='Done!')
@@ -439,4 +471,9 @@ while True:
             MainWindow['Browse'].FileTypes = file_ext['sec'],  # type: ignore
             MainWindow['PathInput'].update(disabled=False)
             Function = SetOptions('PPTSections')
+        case 'Normalize Spacing':
+            MainWindow['Browse'].update(disabled=False)
+            MainWindow['Browse'].FileTypes = file_ext['norm'],  # type: ignore
+            MainWindow['PathInput'].update(disabled=False)
+            Function = SetOptions('NormalizeSpacing')
 MainWindow.close()

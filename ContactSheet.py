@@ -30,7 +30,7 @@ def CleanTempDir(Tempdir: Path, compress=True):
         if not file.suffix == '.png':
             with Image.open(file.as_posix()) as im:
                 try:
-                    im.save(f'{file.as_posix()}.png')
+                    im.save(f'{file.parent.as_posix()}/{file.stem}.png')
                     file.unlink(missing_ok=True)
                 except OSError:
                     continue
@@ -78,7 +78,7 @@ Name of the image: {pic.name}'''
             copyfile(pic.as_posix(),
                      ErrorDir.as_posix() + '/' + pic.name)
         if File.suffix == '.pptx' or File.suffix == '.story':
-            locations = LocateImage(TempDir, str(pic.name))
+            locations = LocateImage(TempDir, pic.stem)
             if len(locations) == 0:
                 Table.cell(2, 0).add_paragraph(
                     'only present in Master Slide', style='List Bullet')
@@ -100,7 +100,7 @@ def LocateImage(TempDir: Path, ImageName: str):
     for entry in TempDir.rglob('*.rels'):
         with open(entry, 'r') as File:
             rel = File.read()
-        if search(ImageName, rel):
+        if search(ImageName + r'\.', rel):
             match = search(r'(\w+)\.', entry.name)
             Locations.append(entry.
                              name[match.start():match.end()])  # type: ignore
