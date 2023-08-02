@@ -1,9 +1,13 @@
 import PySimpleGUI as gui
-import Functions as fn
+import General as gn
 from configparser import ConfigParser
 import win32com.client as com
 from pathlib import Path
 import ChExcel as Chx
+import ContactSheet as CS
+import Word as wd
+import Powerpoint as pp
+from Upsave import Upsave
 
 
 Break = False
@@ -15,7 +19,7 @@ for key in file_ext:
 
 
 def ClearOptions():
-    for element in MainWindow.element_list():
+    for element in MainWindow.element_list():  # type: ignore
         if element.metadata == 'option':
             element.update(text='')
             element.update(visible=False)
@@ -115,16 +119,16 @@ def Contact_Sheet(File: Path):
         MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/5)/len(PathList)*100)
-        File = fn.Upsave(File)
+        File = Upsave(File)
     MainWindow['PBarFile'].update(value=File.name)
     MainWindow['PBarFileStep'].update(value='Extracting Images')
     MainWindow['PBar'].update(current_count=(index+2/5)/len(PathList)*100)
-    TempDir = fn.ExtractImages(File)
-    for step in fn.CleanTempDir(TempDir,
+    TempDir = CS.ExtractImages(File)
+    for step in CS.CleanTempDir(TempDir,
                                 MainWindow['R1O1'].get()):  # type: ignore
         MainWindow['PBarFileStep'].update(value=step)
         MainWindow['PBar'].update(current_count=(index+3/5)/len(PathList)*100)
-    for step in fn.FillCS(TempDir, File):
+    for step in CS.FillCS(TempDir, File):
         MainWindow['PBarFileStep'].update(value=step)
         MainWindow['PBar'].update(current_count=(index+4/5)/len(PathList)*100)
         MainWindow.refresh()
@@ -141,9 +145,9 @@ def Bilingual(File: Path):
         MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/5)/len(PathList)*100)
-        File = fn.Upsave(File)
+        File = Upsave(File)
     MainWindow['PBarFile'].update(text=File.name)
-    for step in (fn.BilTable(File)):
+    for step in (wd.BilTable(File)):
         MainWindow['PBar'].update(current_count=(index+2/3)/len(PathList)*100)
         MainWindow['PBarFileStep'].update(text=step)
         MainWindow.refresh()
@@ -163,7 +167,7 @@ def Doc2PDF(WordApp, File: Path):
         MainWindow['PBarFile'].update(text=File.name)
         MainWindow['PBarFileStep'].update(text='Saving as PDF...')
         MainWindow['PBar'].update(current_count=index/len(PathList)*100)
-        fn.Doc2PDF(WordApp, File,
+        wd.Doc2PDF(WordApp, File,
                    ARev=MainWindow['R1O1'].get(),  # type: ignore
                    DRev=MainWindow['R2O1'].get(),  # type: ignore
                    Com=MainWindow['R3O1'].get(),  # type: ignore
@@ -183,7 +187,7 @@ def AcceptRevisions(WordApp, File: Path):
         MainWindow['PBarFile'].update(text=File.name)
         MainWindow['PBarFileStep'].update(text='Accepting revisions...')
         MainWindow['PBar'].update(text=index/len(PathList)*100)
-        fn.AcceptRevisions(WordApp, File,
+        wd.AcceptRevisions(WordApp, File,
                            ARev=MainWindow['R1O1'].get(),  # type: ignore
                            DRev=MainWindow['R2O1'].get(),  # type: ignore
                            Com=MainWindow['R3O1'].get(),  # type: ignore
@@ -194,7 +198,7 @@ def AcceptRevisions(WordApp, File: Path):
 
 def PrepStoryExport(File: Path):
     MainWindow['PBarFile'].update(text=File)
-    for step in fn.PrepStoryExport(File, Regex):
+    for step in wd.PrepStoryExport(File, Regex):
         MainWindow['PBar'].update(current_count=index/len(PathList)*100)
         MainWindow['PBarFileStep'].update(text=str(step))
         MainWindow.refresh()
@@ -208,9 +212,9 @@ def Unhide(File: Path):
         MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
-        File = fn.Upsave(File)
+        File = Upsave(File)
     MainWindow['PBarFile'].update(value=File.name)
-    for step in fn.Unhide(File,
+    for step in gn.Unhide(File,
                           SkipRow=MainWindow['R1O1'].get(),  # type: ignore
                           SkipCol=MainWindow['R2O1'].get(),  # type: ignore
                           SkipSheet=MainWindow['R3O1'].get(),  # type: ignore
@@ -235,7 +239,7 @@ def ChExcel(File: Path):
         MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
-        File = fn.Upsave(File)
+        File = Upsave(File)
     MainWindow['PBarFile'].update(value=File.name)
     for step in Chx.ChExcel(File):
         MainWindow['PBar'].update(current_count=(index+2/3) /
@@ -256,9 +260,9 @@ def PPTSections(File: Path):
         MainWindow['PBarFileStep'].update(value='Upsaving to Office 2007 ' +
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/3)/len(PathList)*100)
-        File = fn.Upsave(File)
+        File = Upsave(File)
     MainWindow['PBarFile'].update(value=File.name)
-    for step in fn.PPTSections(File):
+    for step in pp.PPTSections(File):
         MainWindow['PBar'].update(current_count=(index+2/3) /
                                   len(PathList)*100)
         MainWindow['PBarFileStep'].update(value=step)
