@@ -1,12 +1,12 @@
 from cx_Freeze import setup, Executable
 
-includefiles = ['Functions.py', 'config.ini', 'helper.py', 'ChExcel.py']
+includefiles = ['ChExcel.py', 'config.ini', 'ContactSheet.py', 'General.py', 'helper.py', 'Info.txt', 'Powerpoint.py', 'Upsave.py', 'Word.py']  # noqa: E501
 includes = []
 excludes = []
 
 setup(
     name='Prep ToolKit',
-    version='0.4',
+    version='0.5',
     description='A Translation file prepping utility',
     author='Enzo Agosta',
     author_email='agosta.enzowork@gmail.com',
