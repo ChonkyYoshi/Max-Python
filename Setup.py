@@ -1,6 +1,6 @@
 from cx_Freeze import setup, Executable
 
-includefiles = ['ChExcel.py', 'config.ini', 'ContactSheet.py', 'General.py', 'helper.py', 'Info.txt', 'LICENCE.txt', 'Powerpoint.py', 'Upsave.py', 'Word.py']  # noqa: E501
+includefiles = ['ChExcel.py', 'config.ini', 'ContactSheet.py', 'General.py', 'helper.py', 'Info.txt', 'Powerpoint.py', 'Upsave.py', 'Word.py']  # noqa: E501
 includes = []
 excludes = []
 
