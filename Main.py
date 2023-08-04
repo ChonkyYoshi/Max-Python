@@ -153,10 +153,10 @@ def Bilingual(File: Path):
                                           'format')
         MainWindow['PBar'].update(current_count=(index+1/5)/len(PathList)*100)
         File = Upsave(File)
-    MainWindow['PBarFile'].update(text=File.name)
+    MainWindow['PBarFile'].update(value=File.name)
     for step in (wd.BilTable(File)):
         MainWindow['PBar'].update(current_count=(index+2/3)/len(PathList)*100)
-        MainWindow['PBarFileStep'].update(text=step)
+        MainWindow['PBarFileStep'].update(value=step)
         MainWindow.refresh()
     if Upsaved:
         PathInput.unlink()

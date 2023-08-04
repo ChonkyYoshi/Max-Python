@@ -39,7 +39,7 @@ def BilTable(File: Path):
             TRun.text = run.text
             CopyRunFormatting(SRun, run)
             CopyRunFormatting(TRun, run)
-        par._element.getparent().os.remove(par._element)
+        par._element.getparent().remove(par._element)
     doc.save(File.parent.as_posix() + '/Bil_' + File.name)
 
 
